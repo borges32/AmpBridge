@@ -1,0 +1,89 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server","--save","60","1000","--loglevel","warning"]
+    ports: ["6379:6379"]
+    volumes:
+      - ./data/redis:/data          # PERSISTÊNCIA!
+    restart: unless-stopped         # volta sozinho se cair
+    stop_grace_period: 30s          # dá tempo de salvar no disco
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  opamp-server:
+    build:
+      context: ./opamp-server
+    image: local/opamp-server:latest
+    container_name: opamp-server
+    entrypoint: ["/bin/sh","-c"]
+    command:
+      - |
+        apk add --no-cache socat >/dev/null 2>&1 || true
+        # ponte externa 0.0.0.0:14320 -> 127.0.0.1:4320 (onde o server está preso)
+        socat TCP-LISTEN:14320,fork,reuseaddr TCP:127.0.0.1:4320 &
+        exec /usr/local/bin/opamp-server
+    ports:
+      - "4320:14320"  # OpAMP endpoint
+      - "4321:4321"  # UI
+    healthcheck:
+      test: ["CMD","wget","-qO-","http://localhost:4321/"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  opamp-metrics:
+    build:
+      context: ./python-app
+    image: local/opamp-metrics:latest
+    container_name: opamp-metrics
+    depends_on:
+      - redis
+      - opamp-server
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      REDIS_URL: redis://redis:6379/0
+      OPAMP_SERVER_HTTP_BASE: http://opamp-server:4321
+      OPAMP_API_LIST: /api/agents
+      OPAMP_API_AGENT: /api/agents/{agent_id}
+      METRICS_MODE: ${METRICS_MODE:-SCRAPE}      # SCRAPE | REMOTE_WRITE | OTLP
+      OTLP_ENDPOINT: ${OTLP_ENDPOINT:-http://otel-collector:4317}
+      OTLP_HEADERS: ${OTLP_HEADERS:-}
+    ports:
+      - "8000:8000"   # /metrics, /config, /healthz
+
+  # Opcional: um collector local, se você quiser testar OTLP
+  otel-collector:
+    image: otel/opentelemetry-collector:0.137.0
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - type: bind
+        source: ./otel-bridge/otel-remotewrite.yaml
+        target: /etc/otelcol/config.yaml
+      # Observação: aqui estou reutilizando o mesmo arquivo só como placeholder;
+      # para OTLP real, use uma config com receiver OTLP e exporter desejado.
+    profiles: ["otlp-test"]
+    ports:
+      - "4317:4317"
+
+  # Sidecar para REMOTE_WRITE: ativa somente quando METRICS_MODE=REMOTE_WRITE (via profiles)
+  otel-bridge:
+    image: otel/opentelemetry-collector:0.137.0
+    container_name: otel-bridge
+    command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      REMOTE_WRITE_URL: ${REMOTE_WRITE_URL:-}
+      REMOTE_WRITE_BASIC_AUTH_USER: ${REMOTE_WRITE_BASIC_AUTH_USER:-}
+      REMOTE_WRITE_BASIC_AUTH_PASS: ${REMOTE_WRITE_BASIC_AUTH_PASS:-}
+    volumes:
+      - type: bind
+        source: ./otel-bridge/otel-remotewrite.yaml
+        target: /etc/otelcol/config.yaml
+    depends_on:
+      - opamp-metrics
+    profiles: ["remotewrite"]
