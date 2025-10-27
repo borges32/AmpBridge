@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   redis:
     image: redis:7.4-alpine
@@ -35,6 +33,34 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+
+  opamp-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: opamp-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=${APP_ENV:-dev}
+      - DB_URL=${DB_URL:-sqlite:///data/app.db}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-admin123}
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - JWT_EXPIRES_MIN=${JWT_EXPIRES_MIN:-1440}
+      - OPAMP_BASE_URL=${OPAMP_BASE_URL:-http://opamp-server:4321}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+      - RATE_LIMIT_PER_MIN=${RATE_LIMIT_PER_MIN:-100}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - OTLP_ENDPOINT=${OTLP_ENDPOINT:-}
+      - OTLP_HEADERS=${OTLP_HEADERS:-}
+    volumes:
+      - ./backend/data:/app/data
+    depends_on:
+      - opamp-server
+    networks:
+      - default
+    restart: unless-stopped
 
   opamp-metrics:
     build:
