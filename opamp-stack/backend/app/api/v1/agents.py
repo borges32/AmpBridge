@@ -1,5 +1,6 @@
 """Agents API endpoints."""
 
+from asyncio.log import logger
 from typing import List, Optional, Annotated
 from datetime import datetime
 
@@ -54,6 +55,7 @@ async def list_agents(
     search: Optional[str] = Query(None, description="Search in agent ID or name"),
     sync: bool = Query(False, description="Sync from OpAMP server before listing")
 ):
+    
     """List agents with optional filtering and pagination.
     
     Args:
@@ -76,7 +78,9 @@ async def list_agents(
         try:
             await agent_service.sync_agents_from_opamp(env_filter=env)
         except Exception as e:
+            
             # Log error but don't fail the request
+            logger.error(f"Failed to sync agents from OpAMP server: {e}")
             pass
     
     # Get agents

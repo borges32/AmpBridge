@@ -176,31 +176,90 @@ class OpAMPClient:
             params['env'] = env
         
         try:
-            response = await self._make_request('GET', '/api/agents', params=params)
+            response = await self._make_request('GET', '/agents/json', params=params)
             data = response.json()
             
             agents = []
-            for agent_data in data.get('agents', []):
-                agent = AgentInfo(
-                    id=agent_data['id'],
-                    name=agent_data.get('name', agent_data['id']),
-                    env=agent_data.get('env'),
-                    os=agent_data.get('os'),
-                    arch=agent_data.get('arch'),
-                    version=agent_data.get('version'),
-                    status=agent_data.get('status', 'unknown'),
-                    config_version=agent_data.get('config_version'),
-                    metadata=agent_data.get('metadata')
-                )
+            # Data is now a list of agent objects directly
+            for agent_data in data:
+                # Extract basic info
+                instance_id = agent_data.get('instanceId', agent_data.get('instanceIdStr', ''))
                 
-                # Parse last_seen if provided
-                if 'last_seen' in agent_data:
+                # Extract service name from identifying attributes
+                service_name = instance_id
+                service_version = None
+                arch = None
+                os_type = None
+                host_name = None
+                
+                # Parse agent_description for attributes
+                status_info = agent_data.get('status', {})
+                agent_desc = status_info.get('agent_description', {})
+                
+                # Extract from identifying_attributes
+                identifying_attrs = agent_desc.get('identifying_attributes', [])
+                for attr in identifying_attrs:
+                    key = attr.get('key', '')
+                    value_obj = attr.get('value', {}).get('Value', {})
+                    string_value = value_obj.get('StringValue', '')
+                    
+                    if key == 'service.name':
+                        service_name = string_value
+                    elif key == 'service.version':
+                        service_version = string_value
+                
+                # Extract from non_identifying_attributes
+                non_identifying_attrs = agent_desc.get('non_identifying_attributes', [])
+                for attr in non_identifying_attrs:
+                    key = attr.get('key', '')
+                    value_obj = attr.get('value', {}).get('Value', {})
+                    string_value = value_obj.get('StringValue', '')
+                    
+                    if key == 'host.arch':
+                        arch = string_value
+                    elif key == 'os.type':
+                        os_type = string_value
+                    elif key == 'host.name':
+                        host_name = string_value
+                
+                # Determine status from health info
+                health_info = status_info.get('health', {})
+                agent_status = 'healthy' if health_info.get('healthy', False) else 'unhealthy'
+                
+                # Parse start time for last_seen
+                last_seen = None
+                start_time_nano = health_info.get('start_time_unix_nano')
+                if start_time_nano:
                     try:
-                        agent.last_seen = datetime.fromisoformat(
-                            agent_data['last_seen'].replace('Z', '+00:00')
-                        )
-                    except (ValueError, AttributeError):
+                        # Convert nanoseconds to seconds
+                        start_time_seconds = start_time_nano / 1_000_000_000
+                        last_seen = datetime.fromtimestamp(start_time_seconds)
+                    except (ValueError, TypeError):
                         pass
+                
+                # Get config version from effective_config
+                config_version = None
+                effective_config = status_info.get('effective_config', {})
+                if effective_config:
+                    config_version = str(hash(str(effective_config)))[:8]  # Simple hash for version
+                
+                agent = AgentInfo(
+                    id=instance_id,
+                    name=service_name or instance_id,
+                    env=env,  # Use the provided env filter
+                    os=os_type,
+                    arch=arch,
+                    version=service_version,
+                    status=agent_status,
+                    last_seen=last_seen,
+                    config_version=config_version,
+                    metadata={
+                        'host_name': host_name,
+                        'health_status': health_info.get('status'),
+                        'capabilities': status_info.get('capabilities'),
+                        'started_at': agent_data.get('startedAt')
+                    }
+                )
                 
                 agents.append(agent)
             
@@ -223,30 +282,91 @@ class OpAMPClient:
         Raises:
             OpAMPClientError: Request failed
         """
+        params = {'instanceid': agent_id}
+        
         try:
-            response = await self._make_request('GET', f'/api/agents/{agent_id}')
+            response = await self._make_request('GET', '/agent/json', params=params)
             data = response.json()
             
-            agent = AgentInfo(
-                id=data['id'],
-                name=data.get('name', data['id']),
-                env=data.get('env'),
-                os=data.get('os'),
-                arch=data.get('arch'),
-                version=data.get('version'),
-                status=data.get('status', 'unknown'),
-                config_version=data.get('config_version'),
-                metadata=data.get('metadata')
-            )
+            # Extract basic info
+            instance_id = data.get('instanceId', data.get('instanceIdStr', ''))
             
-            # Parse last_seen if provided
-            if 'last_seen' in data:
+            # Extract service name from identifying attributes
+            service_name = instance_id
+            service_version = None
+            arch = None
+            os_type = None
+            host_name = None
+            
+            # Parse agent_description for attributes
+            status_info = data.get('status', {})
+            agent_desc = status_info.get('agent_description', {})
+            
+            # Extract from identifying_attributes
+            identifying_attrs = agent_desc.get('identifying_attributes', [])
+            for attr in identifying_attrs:
+                key = attr.get('key', '')
+                value_obj = attr.get('value', {}).get('Value', {})
+                string_value = value_obj.get('StringValue', '')
+                
+                if key == 'service.name':
+                    service_name = string_value
+                elif key == 'service.version':
+                    service_version = string_value
+            
+            # Extract from non_identifying_attributes
+            non_identifying_attrs = agent_desc.get('non_identifying_attributes', [])
+            for attr in non_identifying_attrs:
+                key = attr.get('key', '')
+                value_obj = attr.get('value', {}).get('Value', {})
+                string_value = value_obj.get('StringValue', '')
+                
+                if key == 'host.arch':
+                    arch = string_value
+                elif key == 'os.type':
+                    os_type = string_value
+                elif key == 'host.name':
+                    host_name = string_value
+            
+            # Determine status from health info
+            health_info = status_info.get('health', {})
+            agent_status = 'healthy' if health_info.get('healthy', False) else 'unhealthy'
+            
+            # Parse start time for last_seen
+            last_seen = None
+            start_time_nano = health_info.get('start_time_unix_nano')
+            if start_time_nano:
                 try:
-                    agent.last_seen = datetime.fromisoformat(
-                        data['last_seen'].replace('Z', '+00:00')
-                    )
-                except (ValueError, AttributeError):
+                    # Convert nanoseconds to seconds
+                    start_time_seconds = start_time_nano / 1_000_000_000
+                    last_seen = datetime.fromtimestamp(start_time_seconds)
+                except (ValueError, TypeError):
                     pass
+            
+            # Get config version from effective_config
+            config_version = None
+            effective_config = status_info.get('effective_config', {})
+            if effective_config:
+                config_version = str(hash(str(effective_config)))[:8]  # Simple hash for version
+            
+            agent = AgentInfo(
+                id=instance_id,
+                name=service_name or instance_id,
+                env=None,  # Env not directly available in this format
+                os=os_type,
+                arch=arch,
+                version=service_version,
+                status=agent_status,
+                last_seen=last_seen,
+                config_version=config_version,
+                metadata={
+                    'host_name': host_name,
+                    'health_status': health_info.get('status'),
+                    'capabilities': status_info.get('capabilities'),
+                    'started_at': data.get('startedAt'),
+                    'effective_config': data.get('effectiveConfig')
+                }
+            )
             
             logger.debug(f"Retrieved agent {agent_id} details")
             return agent

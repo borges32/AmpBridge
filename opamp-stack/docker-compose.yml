@@ -17,22 +17,25 @@ services:
     build:
       context: ./opamp-server
     image: local/opamp-server:latest
-    container_name: opamp-server
-    entrypoint: ["/bin/sh","-c"]
-    command:
-      - |
-        apk add --no-cache socat >/dev/null 2>&1 || true
-        # ponte externa 0.0.0.0:14320 -> 127.0.0.1:4320 (onde o server está preso)
-        socat TCP-LISTEN:14320,fork,reuseaddr TCP:127.0.0.1:4320 &
-        exec /usr/local/bin/opamp-server
+    container_name: opamp-server    
+    command: ["/usr/local/bin/opamp-server"]       
     ports:
-      - "4320:14320"  # OpAMP endpoint
       - "4321:4321"  # UI
     healthcheck:
       test: ["CMD","wget","-qO-","http://localhost:4321/"]
       interval: 10s
       timeout: 5s
       retries: 20
+
+  haproxy:
+    image: haproxy:2.9
+    container_name: opamp-haproxy
+    depends_on:
+      - opamp-server
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "4320:4320"       # HTTP
 
   opamp-backend:
     build:

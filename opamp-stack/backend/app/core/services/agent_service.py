@@ -22,6 +22,7 @@ class AgentService:
         self.db = db
     
     async def sync_agents_from_opamp(self, env_filter: Optional[str] = None) -> int:
+    
         """Sync agents from OpAMP server to local database.
         
         Args:
@@ -31,6 +32,7 @@ class AgentService:
             Number of agents synchronized
         """
         try:
+            
             # Fetch agents from OpAMP server
             async with opamp_client:
                 opamp_agents = await opamp_client.list_agents(env=env_filter)
