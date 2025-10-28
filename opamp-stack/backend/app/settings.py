@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # Polling
     agent_poll_interval: int = Field(default=30, description="Agent polling interval in seconds")
     
+    # Agent Synchronization
+    agent_sync_enabled: bool = Field(default=True, description="Enable automatic agent synchronization")
+    agent_sync_interval: int = Field(default=60, description="Agent sync interval in seconds")
+    agent_sync_timeout: int = Field(default=120, description="Agent sync timeout in seconds")
+    
     @property
     def cors_origins_list(self) -> List[str]:
         """Get CORS origins as a list."""

@@ -190,6 +190,54 @@ async def stream_job_progress(
     return create_sse_response(job_id, request)
 
 
+@router.post("/jobs/sync-agents")
+async def trigger_agent_sync(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.WRITE_JOBS))]
+):
+    """Trigger manual agent synchronization from OpAMP server.
+    
+    Args:
+        db: Database session
+        current_user: Current authenticated user
+        
+    Returns:
+        Created job information
+    """
+    from app.db.models import Job
+    
+    # Check if there's already a pending/running sync job
+    existing_job = db.query(Job).filter(
+        Job.type == JobType.SYNC_AGENTS.value,
+        Job.status.in_([JobStatus.PENDING.value, JobStatus.RUNNING.value])
+    ).first()
+    
+    if existing_job:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Agent sync job already running: {existing_job.id}"
+        )
+    
+    # Generate job ID
+    import uuid
+    
+    # Create new sync job
+    job = Job(
+        id=str(uuid.uuid4()),
+        type=JobType.SYNC_AGENTS.value,
+        status=JobStatus.PENDING.value,
+        total_agents=0,  # Not applicable for sync jobs
+        created_by=current_user.username,
+        payload_json={}  # Empty payload for sync jobs
+    )
+    
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    
+    return JobResponse.from_orm(job)
+
+
 @router.get("/jobs/stats")
 async def get_job_statistics(
     db: Annotated[Session, Depends(get_db)],

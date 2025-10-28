@@ -10,6 +10,7 @@ from app.db.session import get_db_session
 from app.db.models import Job, JobRun, JobStatus, JobType
 from app.core.services.job_service import JobService
 from app.core.services.config_service import ConfigService
+from app.core.services.agent_sync_service import AgentSyncService
 from app.clients.opamp import opamp_client
 from app.settings import settings
 from app.telemetry.metrics import (
@@ -41,6 +42,9 @@ class JobRunner:
         
         # Start the main processing loop
         asyncio.create_task(self._process_jobs())
+        
+        # Start the agent sync scheduler
+        asyncio.create_task(self._schedule_agent_sync())
     
     async def stop(self):
         """Stop the job runner and wait for active jobs to complete."""
@@ -60,19 +64,29 @@ class JobRunner:
         """Main job processing loop."""
         while self.running:
             try:
-                with get_db_session() as db:
-                    job_service = JobService(db)
-                    pending_jobs = job_service.get_pending_jobs(limit=10)
+                pending_job_ids = []
                 
-                for job in pending_jobs:
-                    if job.id not in self.active_jobs:
+                # Get pending job IDs in a fresh session
+                with get_db_session() as db:
+                    pending_jobs = (
+                        db.query(Job.id)
+                        .filter(Job.status == JobStatus.PENDING)
+                        .order_by(Job.created_at)
+                        .limit(10)
+                        .all()
+                    )
+                    pending_job_ids = [job.id for job in pending_jobs]
+                
+                # Process jobs
+                for job_id in pending_job_ids:
+                    if job_id not in self.active_jobs:
                         # Start job processing
-                        task = asyncio.create_task(self._process_job(job.id))
-                        self.active_jobs[job.id] = task
+                        task = asyncio.create_task(self._process_job(job_id))
+                        self.active_jobs[job_id] = task
                         
                         # Clean up completed tasks
                         task.add_done_callback(
-                            lambda t, job_id=job.id: self.active_jobs.pop(job_id, None)
+                            lambda t, job_id=job_id: self.active_jobs.pop(job_id, None)
                         )
                 
                 # Wait before next check
@@ -99,31 +113,39 @@ class JobRunner:
                     if not job or job.status != JobStatus.PENDING:
                         return
                     
+                    # Get job type before starting (to avoid session issues)
+                    job_type = job.type
+                    job_total_agents = job.total_agents
+                    
                     # Start the job
                     if not job_service.start_job(job_id):
                         return
                     
-                    logger.info(f"Processing job {job_id} of type {job.type}")
+                    logger.info(f"Processing job {job_id} of type {job_type}")
                     
                     # Initialize progress tracking
                     self.job_progress[job_id] = {
-                        "total": job.total_agents,
+                        "total": job_total_agents,
                         "completed": 0,
                         "successful": 0,
                         "failed": 0,
                         "progress": 0
                     }
                     
-                    # Process based on job type
-                    success = False
-                    error_message = None
-                    
-                    if job.type == JobType.BULK_CONFIG_UPDATE.value:
-                        success, error_message = await self._process_bulk_config_job(job_id, job)
-                    else:
-                        error_message = f"Unknown job type: {job.type}"
-                    
-                    # Complete the job
+                # Process based on job type (outside the session)
+                success = False
+                error_message = None
+                
+                if job_type == JobType.BULK_CONFIG_UPDATE.value:
+                    success, error_message = await self._process_bulk_config_job(job_id)
+                elif job_type == JobType.SYNC_AGENTS.value:
+                    success, error_message = await self._process_sync_agents_job(job_id)
+                else:
+                    error_message = f"Unknown job type: {job_type}"
+                
+                # Complete the job
+                with get_db_session() as db:
+                    job_service = JobService(db)
                     job_service.complete_job(job_id, error_message)
                     
                     # Update metrics
@@ -131,12 +153,12 @@ class JobRunner:
                     status = "completed" if success else "failed"
                     
                     increment_counter(JOB_TOTAL, {
-                        "type": job.type,
+                        "type": job_type,
                         "status": status
                     })
                     
                     JOB_DURATION.labels(
-                        type=job.type,
+                        type=job_type,
                         status=status
                     ).observe(duration)
                     
@@ -156,7 +178,7 @@ class JobRunner:
                 # Clear progress tracking
                 self.job_progress.pop(job_id, None)
     
-    async def _process_bulk_config_job(self, job_id: str, job: Job) -> tuple[bool, Optional[str]]:
+    async def _process_bulk_config_job(self, job_id: str) -> tuple[bool, Optional[str]]:
         """Process a bulk configuration update job.
         
         Args:
@@ -167,7 +189,14 @@ class JobRunner:
             Tuple of (success, error_message)
         """
         try:
-            payload = job.payload_json
+            # Get job details from database
+            with get_db_session() as db:
+                job_service = JobService(db)
+                job = job_service.get_job_by_id(job_id)
+                if not job:
+                    return False, "Job not found"
+                payload = job.payload_json
+                job_type = job.type
             config_yaml = payload.get('config_yaml')
             agent_ids = payload.get('agent_ids', [])
             applied_by = payload.get('applied_by', 'system')
@@ -241,7 +270,7 @@ class JobRunner:
                             # Update metrics
                             set_gauge(JOB_PROGRESS, progress, {
                                 "job_id": job_id,
-                                "type": job.type
+                                "type": job_type
                             })
                 
                 # Process all job runs concurrently
@@ -254,6 +283,32 @@ class JobRunner:
         except Exception as e:
             logger.error(f"Error in bulk config job {job_id}: {e}")
             return False, str(e)
+    
+    async def _process_sync_agents_job(self, job_id: str) -> tuple[bool, Optional[str]]:
+        """Process agent synchronization job."""
+        from app.core.services.agent_sync_service import AgentSyncService
+        
+        try:
+            with get_db_session() as db:
+                agent_sync_service = AgentSyncService(db)
+                
+                # Use configured timeout
+                result = await asyncio.wait_for(
+                    agent_sync_service.sync_agents_from_opamp(),
+                    timeout=settings.agent_sync_timeout
+                )
+                
+                logger.info(f"Agent sync completed: {result}")
+                return True, None
+                
+        except asyncio.TimeoutError:
+            error_msg = f"Agent sync job timed out after {settings.agent_sync_timeout}s"
+            logger.error(error_msg)
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"Agent sync job failed: {e}"
+            logger.error(error_msg)
+            return False, error_msg
     
     def get_job_progress(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get current progress for a job.
@@ -273,6 +328,67 @@ class JobRunner:
             List of active job IDs
         """
         return list(self.active_jobs.keys())
+    
+    async def _schedule_agent_sync(self):
+        """Schedule agent synchronization job based on configured interval."""
+        if not settings.agent_sync_enabled:
+            logger.info("Agent sync scheduler disabled by configuration")
+            return
+            
+        logger.info(f"Agent sync scheduler started (interval: {settings.agent_sync_interval}s)")
+        
+        while self.running:
+            try:
+                # Wait for configured interval
+                await asyncio.sleep(settings.agent_sync_interval)
+                
+                if not self.running:
+                    break
+                
+                # Create sync job
+                await self._create_sync_job()
+                
+            except Exception as e:
+                logger.error(f"Error in agent sync scheduler: {e}")
+                # Wait before retrying
+                await asyncio.sleep(30)
+        
+        logger.info("Agent sync scheduler stopped")
+    
+    async def _create_sync_job(self):
+        """Create a new agent sync job."""
+        try:
+            with get_db_session() as db:
+                job_service = JobService(db)
+                
+                # Check if there's already a pending/running sync job
+                existing_job_count = db.query(Job.id).filter(
+                    Job.type == JobType.SYNC_AGENTS.value,
+                    Job.status.in_([JobStatus.PENDING.value, JobStatus.RUNNING.value])
+                ).count()
+                
+                if existing_job_count > 0:
+                    logger.debug("Agent sync job already pending/running, skipping")
+                    return
+                
+                # Create new sync job
+                import uuid
+                job = Job(
+                    id=str(uuid.uuid4()),
+                    type=JobType.SYNC_AGENTS.value,
+                    status=JobStatus.PENDING.value,
+                    total_agents=0,  # Not applicable for sync jobs
+                    created_by="system",
+                    payload_json={}  # Empty payload for sync jobs
+                )
+                
+                db.add(job)
+                db.commit()
+                
+                logger.debug(f"Created agent sync job: {job.id}")
+                
+        except Exception as e:
+            logger.error(f"Failed to create agent sync job: {e}")
 
 
 # Global job runner instance

@@ -27,6 +27,7 @@ class JobType(str, Enum):
     """Job type enumeration."""
     CONFIG_UPDATE = "config_update"
     BULK_CONFIG_UPDATE = "bulk_config_update"
+    SYNC_AGENTS = "sync_agents"
 
 
 class UserRole(str, Enum):
