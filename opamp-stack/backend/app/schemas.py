@@ -40,6 +40,9 @@ class AgentBase(BaseModel):
     host_name: Optional[str] = None
     os_type: Optional[str] = None
     os_description: Optional[str] = None
+    service_name: Optional[str] = None
+    service_version: Optional[str] = None
+    host_arch: Optional[str] = None
 
 
 class AgentCreate(AgentBase):
@@ -52,6 +55,9 @@ class AgentUpdate(BaseModel):
     host_name: Optional[str] = None
     os_type: Optional[str] = None
     os_description: Optional[str] = None
+    service_name: Optional[str] = None
+    service_version: Optional[str] = None
+    host_arch: Optional[str] = None
     healthy: Optional[bool] = None
     status_sync: Optional[str] = None
     alert_config: Optional[bool] = None

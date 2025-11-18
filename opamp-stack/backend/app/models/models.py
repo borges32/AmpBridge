@@ -46,6 +46,9 @@ class Agent(Base):
     host_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     os_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     os_description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    service_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    service_version: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    host_arch: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     healthy: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status_sync: Mapped[str] = mapped_column(String(50), default="UNKNOWN", nullable=False)  # IN_SYNC, OUT_OF_SYNC, UNKNOWN
     alert_config: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

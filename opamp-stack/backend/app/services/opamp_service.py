@@ -65,8 +65,20 @@ class OpAMPService:
         attributes = {}
         
         agent_desc = status.get("agent_description", {})
-        non_id_attrs = agent_desc.get("non_identifying_attributes", [])
         
+        # Extract from identifying_attributes (service.name, service.version)
+        id_attrs = agent_desc.get("identifying_attributes", [])
+        for attr in id_attrs:
+            key = attr.get("key")
+            value_obj = attr.get("value", {}).get("Value", {})
+            
+            if key == "service.name":
+                attributes["service_name"] = value_obj.get("StringValue")
+            elif key == "service.version":
+                attributes["service_version"] = value_obj.get("StringValue")
+        
+        # Extract from non_identifying_attributes (host.name, os.type, os.description, host.arch)
+        non_id_attrs = agent_desc.get("non_identifying_attributes", [])
         for attr in non_id_attrs:
             key = attr.get("key")
             value_obj = attr.get("value", {}).get("Value", {})
@@ -77,6 +89,8 @@ class OpAMPService:
                 attributes["os_type"] = value_obj.get("StringValue")
             elif key == "os.description":
                 attributes["os_description"] = value_obj.get("StringValue")
+            elif key == "host.arch":
+                attributes["host_arch"] = value_obj.get("StringValue")
         
         return attributes
     
@@ -123,6 +137,9 @@ class OpAMPService:
             "host_name": attributes.get("host_name"),
             "os_type": attributes.get("os_type"),
             "os_description": attributes.get("os_description"),
+            "service_name": attributes.get("service_name"),
+            "service_version": attributes.get("service_version"),
+            "host_arch": attributes.get("host_arch"),
             "healthy": healthy,
             "is_connected": True,
             "started_at": started_at
