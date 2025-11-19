@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Input, Button, Alert } from 'antd';
-import { UserOutlined, LockOutlined, ApiOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginRequest } from '@/types';
@@ -39,7 +39,13 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <Card className="w-full max-w-md shadow-lg">
         <div className="text-center mb-8">
-          <ApiOutlined className="text-5xl text-blue-500 mb-4" />
+          <div className="flex justify-center mb-4">
+            <img 
+              src="/logo.png" 
+              alt="OpAMP Logo" 
+              className="h-20 w-20 object-contain"
+            />
+          </div>
           <h1 className="text-2xl font-bold text-gray-800">OpAMP Dashboard</h1>
           <p className="text-gray-500 mt-2">Sign in to manage your agents</p>
         </div>

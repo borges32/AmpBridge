@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Avatar, Dropdown, Button } from 'antd';
-import { UserOutlined, LogoutOutlined, ApiOutlined, TeamOutlined } from '@ant-design/icons';
+import { UserOutlined, LogoutOutlined, TeamOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import type { MenuProps } from 'antd';
@@ -35,7 +35,11 @@ const Header: React.FC = () => {
   return (
     <AntHeader className="flex items-center justify-between bg-white shadow-sm px-6">
       <div className="flex items-center gap-4">
-        <ApiOutlined className="text-2xl text-blue-500" />
+        <img 
+          src="/logo.png" 
+          alt="OpAMP Logo" 
+          className="h-10 w-10 object-contain"
+        />
         <h1 className="text-xl font-semibold m-0">OpAMP Dashboard</h1>
       </div>
 
