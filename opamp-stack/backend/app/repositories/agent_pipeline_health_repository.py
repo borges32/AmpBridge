@@ -137,3 +137,50 @@ class AgentPipelineHealthRepository:
         
         await self.db.commit()
         return delete_result.rowcount
+    
+    async def bulk_create(self, health_data_list: List[AgentPipelineHealthCreate]) -> List[AgentPipelineHealth]:
+        """Bulk create pipeline health records.
+        
+        Optimized for performance with large batches.
+        
+        Args:
+            health_data_list: List of pipeline health data to create
+            
+        Returns:
+            List of created AgentPipelineHealth objects
+        """
+        if not health_data_list:
+            return []
+        
+        health_records = [
+            AgentPipelineHealth(**health_data.model_dump()) 
+            for health_data in health_data_list
+        ]
+        
+        self.db.add_all(health_records)
+        await self.db.commit()
+        
+        for health in health_records:
+            await self.db.refresh(health)
+        
+        return health_records
+    
+    async def bulk_delete_by_instance_ids(self, instance_ids: List[str]) -> int:
+        """Delete all pipeline health records for multiple agents.
+        
+        Args:
+            instance_ids: List of agent instance IDs
+            
+        Returns:
+            Number of records deleted
+        """
+        if not instance_ids:
+            return 0
+        
+        delete_result = await self.db.execute(
+            delete(AgentPipelineHealth)
+            .where(AgentPipelineHealth.instance_id.in_(instance_ids))
+        )
+        
+        await self.db.commit()
+        return delete_result.rowcount

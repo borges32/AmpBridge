@@ -83,3 +83,30 @@ class AgentHealthRepository:
         
         await self.db.commit()
         return delete_result.rowcount
+    
+    async def bulk_create(self, health_data_list: List[AgentHealthCreate]) -> List[AgentHealth]:
+        """Bulk create health records.
+        
+        Optimized for performance with large batches.
+        
+        Args:
+            health_data_list: List of health data to create
+            
+        Returns:
+            List of created AgentHealth objects
+        """
+        if not health_data_list:
+            return []
+        
+        health_records = [
+            AgentHealth(**health_data.model_dump()) 
+            for health_data in health_data_list
+        ]
+        
+        self.db.add_all(health_records)
+        await self.db.commit()
+        
+        for health in health_records:
+            await self.db.refresh(health)
+        
+        return health_records

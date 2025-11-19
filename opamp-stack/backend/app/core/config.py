@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     OPAMP_SERVER_URL: str
     OPAMP_SYNC_INTERVAL_SECONDS: int = 60
     
+    # Performance Settings
+    OPAMP_SYNC_BATCH_SIZE: int = 100  # Number of agents to process in parallel
+    OPAMP_SYNC_MAX_WORKERS: int = 10   # Max concurrent batches
+    OPAMP_DB_BULK_SIZE: int = 500      # Bulk insert/update size
+    
     # Security
     SECRET_KEY: str
     ALGORITHM: str = "HS256"

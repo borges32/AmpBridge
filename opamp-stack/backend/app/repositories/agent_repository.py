@@ -164,6 +164,65 @@ class AgentRepository:
         await self.db.refresh(agent)
         return agent
     
+    async def bulk_upsert(self, agents_data: List[dict]) -> List[Agent]:
+        """Bulk create or update agents.
+        
+        Optimized for performance with large batches:
+        - Single query to fetch existing agents
+        - Batch updates and inserts
+        - Single commit
+        
+        Args:
+            agents_data: List of agent data dicts with instance_id
+            
+        Returns:
+            List of created/updated Agent objects
+        """
+        if not agents_data:
+            return []
+        
+        # Extract instance_ids
+        instance_ids = [data['instance_id'] for data in agents_data]
+        
+        # Fetch existing agents in one query
+        result = await self.db.execute(
+            select(Agent).where(Agent.instance_id.in_(instance_ids))
+        )
+        existing_agents = {agent.instance_id: agent for agent in result.scalars().all()}
+        
+        updated_agents = []
+        new_agents = []
+        now = datetime.utcnow()
+        
+        # Separate updates and inserts
+        for data in agents_data:
+            instance_id = data['instance_id']
+            
+            if instance_id in existing_agents:
+                # Update existing
+                agent = existing_agents[instance_id]
+                for field, value in data.items():
+                    if hasattr(agent, field):
+                        setattr(agent, field, value)
+                agent.last_seen_at = now
+                updated_agents.append(agent)
+            else:
+                # Create new
+                agent = Agent(**data)
+                agent.last_seen_at = now
+                new_agents.append(agent)
+                self.db.add(agent)
+        
+        # Single commit for all operations
+        await self.db.commit()
+        
+        # Refresh all agents
+        all_agents = updated_agents + new_agents
+        for agent in all_agents:
+            await self.db.refresh(agent)
+        
+        return all_agents
+    
     async def mark_disconnected(self, instance_ids_to_keep: List[str]) -> int:
         """Mark agents as disconnected if they're not in the provided list.
         Also marks them as unhealthy since a disconnected agent cannot be healthy."""

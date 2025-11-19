@@ -69,3 +69,66 @@ class AgentConfigRepository:
             .where(AgentConfig.version == version)
         )
         return result.scalar_one_or_none()
+    
+    async def bulk_create(self, config_data_list: List[AgentConfigCreate]) -> List[AgentConfig]:
+        """Bulk create config records.
+        
+        Optimized for performance with large batches.
+        
+        Args:
+            config_data_list: List of config data to create
+            
+        Returns:
+            List of created AgentConfig objects
+        """
+        if not config_data_list:
+            return []
+        
+        configs = [
+            AgentConfig(**config_data.model_dump()) 
+            for config_data in config_data_list
+        ]
+        
+        self.db.add_all(configs)
+        await self.db.commit()
+        
+        for config in configs:
+            await self.db.refresh(config)
+        
+        return configs
+    
+    async def get_latest_configs_bulk(self, instance_ids: List[str]) -> dict:
+        """Get latest config for multiple agents in one query.
+        
+        Args:
+            instance_ids: List of instance IDs
+            
+        Returns:
+            Dict mapping instance_id to latest AgentConfig
+        """
+        if not instance_ids:
+            return {}
+        
+        # Subquery to get max version per instance_id
+        subquery = (
+            select(
+                AgentConfig.instance_id,
+                func.max(AgentConfig.version).label('max_version')
+            )
+            .where(AgentConfig.instance_id.in_(instance_ids))
+            .group_by(AgentConfig.instance_id)
+            .subquery()
+        )
+        
+        # Join to get full config records
+        result = await self.db.execute(
+            select(AgentConfig)
+            .join(
+                subquery,
+                (AgentConfig.instance_id == subquery.c.instance_id) &
+                (AgentConfig.version == subquery.c.max_version)
+            )
+        )
+        
+        configs = result.scalars().all()
+        return {config.instance_id: config for config in configs}
