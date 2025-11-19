@@ -4,8 +4,9 @@ Repository layer for AgentConfig database operations.
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
+from sqlalchemy.orm import selectinload
 
-from app.models.models import AgentConfig
+from app.models.models import AgentConfig, User
 from app.schemas import AgentConfigCreate
 
 
@@ -28,6 +29,7 @@ class AgentConfigRepository:
         """Get the latest config version for an agent."""
         result = await self.db.execute(
             select(AgentConfig)
+            .options(selectinload(AgentConfig.updated_by_user))
             .where(AgentConfig.instance_id == instance_id)
             .order_by(desc(AgentConfig.version))
             .limit(1)
@@ -51,6 +53,7 @@ class AgentConfigRepository:
         """Get config version history for an agent."""
         result = await self.db.execute(
             select(AgentConfig)
+            .options(selectinload(AgentConfig.updated_by_user))
             .where(AgentConfig.instance_id == instance_id)
             .order_by(desc(AgentConfig.version))
             .limit(limit)
@@ -61,6 +64,7 @@ class AgentConfigRepository:
         """Get a specific config version."""
         result = await self.db.execute(
             select(AgentConfig)
+            .options(selectinload(AgentConfig.updated_by_user))
             .where(AgentConfig.instance_id == instance_id)
             .where(AgentConfig.version == version)
         )

@@ -162,12 +162,24 @@ class AgentConfigUpdate(BaseModel):
     updated_by_user_id: Optional[int] = None
 
 
+class AgentConfigUserInfo(BaseModel):
+    """User information for config history."""
+    id: int
+    name: str
+    email: str
+    login: str
+
+    class Config:
+        from_attributes = True
+
+
 class AgentConfigResponse(AgentConfigBase):
     id: int
     version: int
     config_hash: str
     source: str
     updated_by_user_id: Optional[int] = None
+    updated_by_user: Optional[AgentConfigUserInfo] = None
     created_at: datetime
     updated_at: datetime
 

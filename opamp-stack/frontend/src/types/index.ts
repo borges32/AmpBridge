@@ -146,6 +146,13 @@ export interface AgentStats {
 // ============================================================================
 // Config Version Types
 // ============================================================================
+export interface ConfigVersionUser {
+  id: number;
+  name: string;
+  email: string;
+  login: string;
+}
+
 export interface ConfigVersion {
   id: number;
   instance_id: string;
@@ -154,6 +161,7 @@ export interface ConfigVersion {
   effective_config: string;
   source: string;
   updated_by_user_id?: number | null;
+  updated_by_user?: ConfigVersionUser | null;
   created_at: string;
   updated_at: string;
 }

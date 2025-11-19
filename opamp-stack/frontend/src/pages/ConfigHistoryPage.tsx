@@ -163,10 +163,18 @@ const ConfigHistoryPage: React.FC = () => {
     },
     {
       title: 'Created By',
-      dataIndex: 'updated_by_user_id',
-      key: 'updated_by_user_id',
+      dataIndex: 'updated_by_user',
+      key: 'updated_by_user',
       width: 150,
-      render: (userId) => userId ? `User ${userId}` : <span className="text-gray-400">System</span>,
+      render: (user, record) => {
+        if (user && user.name) {
+          return user.name;
+        } else if (record.updated_by_user_id) {
+          return `User ${record.updated_by_user_id}`;
+        } else {
+          return <span className="text-gray-400">System</span>;
+        }
+      },
     },
     {
       title: 'Created At',

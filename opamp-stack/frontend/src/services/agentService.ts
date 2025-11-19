@@ -136,6 +136,13 @@ class AgentService {
     const params = componentName ? `?component_name=${componentName}` : '';
     return apiClient.get<AgentPipelineHealth[]>(`/api/v1/agents/${instanceId}/pipelines/health${params}`);
   }
+
+  /**
+   * Export all agents to CSV
+   */
+  async exportAgentsCSV(): Promise<Blob> {
+    return apiClient.downloadFile('/api/v1/agents/csv');
+  }
 }
 
 export const agentService = new AgentService();

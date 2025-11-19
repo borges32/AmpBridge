@@ -7,6 +7,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   SearchOutlined,
+  FileExcelOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -45,6 +46,24 @@ const AgentsPage: React.FC = () => {
     queryFn: () => agentService.getAgentStats(),
     refetchInterval: 30000, // Refetch every 30 seconds
   });
+
+  // Handle export to CSV
+  const handleExportCSV = async () => {
+    try {
+      const blob = await agentService.exportAgentsCSV();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `agents_export_${dayjs().format('YYYY-MM-DD_HH-mm-ss')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      message.success('Agents exported to CSV successfully');
+    } catch (error: any) {
+      message.error(error.detail || 'Failed to export agents to CSV');
+    }
+  };
 
   // Handle download config
   const handleDownloadConfig = async (agent: Agent) => {
@@ -180,7 +199,18 @@ const AgentsPage: React.FC = () => {
   return (
     <MainLayout>
       <div className="w-full">
-        <h1 className="text-3xl font-bold mb-6">Agent Management</h1>
+        {/* Header with Export Button */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Agent Management</h1>
+          <Button
+            type="primary"
+            icon={<FileExcelOutlined />}
+            onClick={handleExportCSV}
+            loading={agentsLoading}
+          >
+            Export to CSV
+          </Button>
+        </div>
 
         {/* Stats Cards */}
         <StatsCards

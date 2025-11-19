@@ -1,89 +1,89 @@
-# Guia de Deploy em Produção
+# Production Deployment Guide
 
-Este documento descreve as melhores práticas e passos para deploy do OpAMP Backend em produção.
+This document describes best practices and steps for deploying the OpAMP Backend in production.
 
 ---
 
-## 🔒 Checklist de Segurança
+## 🔒 Security Checklist
 
-### 1. Alterar Secret Key
+### 1. Change Secret Key
 
 ```bash
-# Gerar nova secret key
+# Generate new secret key
 openssl rand -hex 32
 
-# Editar backend/.env
-SECRET_KEY=<sua-chave-gerada-aqui>
+# Edit backend/.env
+SECRET_KEY=<your-generated-key-here>
 ```
 
-### 2. Senhas do Database
+### 2. Database Passwords
 
 ```bash
-# Gerar senha forte
+# Generate strong password
 openssl rand -base64 32
 
-# Atualizar docker-compose.yml
-POSTGRES_PASSWORD=<senha-forte>
+# Update docker-compose.yml
+POSTGRES_PASSWORD=<strong-password>
 
-# Atualizar backend/.env
-DATABASE_URL=postgresql+asyncpg://opamp:<senha-forte>@postgres:5432/opamp_db
+# Update backend/.env
+DATABASE_URL=postgresql+asyncpg://opamp:<strong-password>@postgres:5432/opamp_db
 ```
 
-### 3. Configurar CORS
+### 3. Configure CORS
 
-Edite `backend/app/main.py`:
+Edit `backend/app/main.py`:
 
 ```python
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://seu-dominio.com",
-        "https://admin.seu-dominio.com"
-    ],  # Especificar domínios permitidos
+        "https://your-domain.com",
+        "https://admin.your-domain.com"
+    ],  # Specify allowed domains
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 ```
 
-### 4. Desabilitar Debug Mode
+### 4. Disable Debug Mode
 
-Em `backend/.env`:
+In `backend/.env`:
 
 ```env
 DEBUG=false
 ```
 
-### 5. Configurar Token Expiration
+### 5. Configure Token Expiration
 
-Em `backend/.env` (ajustar conforme necessidade):
+In `backend/.env` (adjust as needed):
 
 ```env
-ACCESS_TOKEN_EXPIRE_MINUTES=30  # Ou mais curto para maior segurança
+ACCESS_TOKEN_EXPIRE_MINUTES=30  # Or shorter for better security
 ```
 
 ---
 
-## 🌐 Configuração de Domínio e HTTPS
+## 🌐 Domain and HTTPS Configuration
 
-### Opção 1: Nginx Reverse Proxy
+### Option 1: Nginx Reverse Proxy
 
-#### 1.1. Instalar Nginx e Certbot
+#### 1.1. Install Nginx and Certbot
 
 ```bash
 sudo apt update
 sudo apt install nginx certbot python3-certbot-nginx
 ```
 
-#### 1.2. Configurar Nginx
+#### 1.2. Configure Nginx
 
-Criar arquivo `/etc/nginx/sites-available/opamp-backend`:
+Create file `/etc/nginx/sites-available/opamp-backend`:
 
 ```nginx
-# HTTP - Redirecionar para HTTPS
+# HTTP - Redirect to HTTPS
 server {
     listen 80;
-    server_name api.seu-dominio.com;
+    server_name api.your-domain.com;
     
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -97,11 +97,11 @@ server {
 # HTTPS
 server {
     listen 443 ssl http2;
-    server_name api.seu-dominio.com;
+    server_name api.your-domain.com;
     
-    # SSL certificates (certbot irá configurar)
-    ssl_certificate /etc/letsencrypt/live/api.seu-dominio.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.seu-dominio.com/privkey.pem;
+    # SSL certificates (certbot will configure)
+    ssl_certificate /etc/letsencrypt/live/api.your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.your-domain.com/privkey.pem;
     
     # SSL configuration
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -131,7 +131,7 @@ server {
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
         
-        # WebSocket support (se necessário no futuro)
+        # WebSocket support (if needed in the future)
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -151,7 +151,7 @@ server {
 }
 ```
 
-#### 1.3. Ativar configuração
+#### 1.3. Enable configuration
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/opamp-backend /etc/nginx/sites-enabled/
@@ -159,15 +159,15 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-#### 1.4. Obter certificado SSL
+#### 1.4. Obtain SSL certificate
 
 ```bash
-sudo certbot --nginx -d api.seu-dominio.com
+sudo certbot --nginx -d api.your-domain.com
 ```
 
-### Opção 2: Traefik (Docker-based)
+### Option 2: Traefik (Docker-based)
 
-Adicionar ao `docker-compose.yml`:
+Add to `docker-compose.yml`:
 
 ```yaml
 services:
@@ -182,7 +182,7 @@ services:
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.letsencrypt.acme.email=seu-email@example.com"
+      - "--certificatesresolvers.letsencrypt.acme.email=your-email@example.com"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
@@ -194,39 +194,39 @@ services:
       - opamp-network
 
   backend:
-    # ... configuração existente ...
+    # ... existing configuration ...
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`api.seu-dominio.com`)"
+      - "traefik.http.routers.backend.rule=Host(`api.your-domain.com`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
       # Redirect HTTP to HTTPS
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.routers.backend-http.rule=Host(`api.seu-dominio.com`)"
+      - "traefik.http.routers.backend-http.rule=Host(`api.your-domain.com`)"
       - "traefik.http.routers.backend-http.entrypoints=web"
       - "traefik.http.routers.backend-http.middlewares=redirect-to-https"
 ```
 
 ---
 
-## 📦 Persistência de Dados
+## 📦 Data Persistence
 
-### Backup do PostgreSQL
+### PostgreSQL Backup
 
-#### 1. Backup Manual
+#### 1. Manual Backup
 
 ```bash
-# Backup completo
+# Full backup
 docker exec opamp-postgres pg_dump -U opamp opamp_db > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# Backup comprimido
+# Compressed backup
 docker exec opamp-postgres pg_dump -U opamp opamp_db | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
 ```
 
-#### 2. Backup Automatizado (Cron)
+#### 2. Automated Backup (Cron)
 
-Criar script `/opt/opamp/backup.sh`:
+Create script `/opt/opamp/backup.sh`:
 
 ```bash
 #!/bin/bash
@@ -234,84 +234,84 @@ BACKUP_DIR="/opt/opamp/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 RETENTION_DAYS=30
 
-# Criar diretório se não existe
+# Create directory if it doesn't exist
 mkdir -p $BACKUP_DIR
 
-# Fazer backup
+# Make backup
 docker exec opamp-postgres pg_dump -U opamp opamp_db | gzip > $BACKUP_DIR/opamp_backup_$DATE.sql.gz
 
-# Remover backups antigos
+# Remove old backups
 find $BACKUP_DIR -name "opamp_backup_*.sql.gz" -mtime +$RETENTION_DAYS -delete
 
 # Log
 echo "Backup completed: opamp_backup_$DATE.sql.gz"
 ```
 
-Adicionar ao crontab:
+Add to crontab:
 
 ```bash
 chmod +x /opt/opamp/backup.sh
 
-# Editar crontab
+# Edit crontab
 crontab -e
 
-# Adicionar linha (backup diário às 2:00 AM)
+# Add line (daily backup at 2:00 AM)
 0 2 * * * /opt/opamp/backup.sh >> /var/log/opamp-backup.log 2>&1
 ```
 
 #### 3. Restore
 
 ```bash
-# Descompactar e restaurar
+# Decompress and restore
 gunzip -c backup_20251117_020000.sql.gz | docker exec -i opamp-postgres psql -U opamp -d opamp_db
 ```
 
-### Volumes Persistentes
+### Persistent Volumes
 
-Garantir que volumes estejam configurados no `docker-compose.yml`:
+Ensure volumes are configured in `docker-compose.yml`:
 
 ```yaml
 services:
   postgres:
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data  # Dados persistentes
+      - ./data/postgres:/var/lib/postgresql/data  # Persistent data
 ```
 
 ---
 
-## 🔍 Monitoramento
+## 🔍 Monitoring
 
 ### 1. Health Checks
 
-Configurar monitoramento de health checks:
+Configure health check monitoring:
 
 ```bash
 #!/bin/bash
 # /opt/opamp/healthcheck.sh
 
-API_URL="https://api.seu-dominio.com/health"
+API_URL="https://api.your-domain.com/health"
 SLACK_WEBHOOK="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
 
 response=$(curl -s -o /dev/null -w "%{http_code}" $API_URL)
 
 if [ "$response" != "200" ]; then
-    # Enviar alerta
+    # Send alert
     curl -X POST $SLACK_WEBHOOK -H 'Content-Type: application/json' \
       -d "{\"text\":\"⚠️ OpAMP Backend health check failed! HTTP $response\"}"
 fi
 ```
 
-Adicionar ao cron (verificar a cada 5 minutos):
+Add to cron (check every 5 minutes):
 
 ```bash
 */5 * * * * /opt/opamp/healthcheck.sh
 ```
 
-### 2. Logs Centralizados
+### 2. Centralized Logs
 
-#### Opção: Loki + Promtail + Grafana
+#### Option: Loki + Promtail + Grafana
 
-Adicionar ao `docker-compose.yml`:
+Add to `docker-compose.yml`:
 
 ```yaml
 services:
@@ -350,9 +350,9 @@ volumes:
   grafana-data:
 ```
 
-### 3. Métricas (Prometheus)
+### 3. Metrics (Prometheus)
 
-Adicionar endpoint de métricas no backend:
+Add metrics endpoint to the backend:
 
 ```python
 # backend/app/main.py
@@ -360,11 +360,11 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI(...)
 
-# Adicionar instrumentação
+# Add instrumentation
 Instrumentator().instrument(app).expose(app)
 ```
 
-Adicionar Prometheus ao `docker-compose.yml`:
+Add Prometheus to `docker-compose.yml`:
 
 ```yaml
   prometheus:
@@ -385,11 +385,11 @@ volumes:
 
 ---
 
-## 🚀 Deploy Automatizado
+## 🚀 Automated Deployment
 
 ### GitHub Actions (CI/CD)
 
-Criar `.github/workflows/deploy.yml`:
+Create `.github/workflows/deploy.yml`:
 
 ```yaml
 name: Deploy to Production
@@ -422,7 +422,7 @@ jobs:
             docker compose up -d backend
             docker exec opamp-backend alembic upgrade head
             
-            # Verificar health
+            # Check health
             sleep 10
             curl -f http://localhost:8000/health || exit 1
 ```
@@ -433,22 +433,22 @@ jobs:
 
 ### 1. Database Connection Pooling
 
-Já configurado no SQLAlchemy. Ajustar se necessário em `backend/app/core/database.py`:
+Already configured in SQLAlchemy. Adjust if needed in `backend/app/core/database.py`:
 
 ```python
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
-    pool_size=10,           # Número de conexões permanentes
-    max_overflow=20,        # Conexões adicionais temporárias
-    pool_pre_ping=True,     # Verificar conexões antes de usar
-    pool_recycle=3600,      # Reciclar conexões a cada hora
+    pool_size=10,           # Number of permanent connections
+    max_overflow=20,        # Additional temporary connections
+    pool_pre_ping=True,     # Check connections before using
+    pool_recycle=3600,      # Recycle connections every hour
 )
 ```
 
-### 2. Gunicorn Workers (Produção)
+### 2. Gunicorn Workers (Production)
 
-Criar `backend/gunicorn_conf.py`:
+Create `backend/gunicorn_conf.py`:
 
 ```python
 import multiprocessing
@@ -473,21 +473,21 @@ loglevel = "info"
 proc_name = "opamp-backend"
 ```
 
-Atualizar `Dockerfile`:
+Update `Dockerfile`:
 
 ```dockerfile
-# ... resto do Dockerfile ...
+# ... rest of Dockerfile ...
 
-# Instalar gunicorn
+# Install gunicorn
 RUN pip install --no-cache-dir gunicorn
 
 # CMD
 CMD ["gunicorn", "app.main:app", "-c", "gunicorn_conf.py"]
 ```
 
-### 3. Redis Cache (Opcional)
+### 3. Redis Cache (Optional)
 
-Para melhorar performance de queries:
+To improve query performance:
 
 ```yaml
 # docker-compose.yml
@@ -505,30 +505,30 @@ services:
 
 ---
 
-## 📊 Recursos do Servidor
+## 📊 Server Resources
 
-### Mínimo Recomendado
+### Minimum Recommended
 
 - **CPU**: 2 vCPUs
 - **RAM**: 4 GB
-- **Disco**: 20 GB SSD
-- **Rede**: 100 Mbps
+- **Disk**: 20 GB SSD
+- **Network**: 100 Mbps
 
-### Recomendado para Produção
+### Recommended for Production
 
 - **CPU**: 4 vCPUs
 - **RAM**: 8 GB
-- **Disco**: 50 GB SSD
-- **Rede**: 1 Gbps
+- **Disk**: 50 GB SSD
+- **Network**: 1 Gbps
 
-### Limites Docker
+### Docker Limits
 
-Configurar limites em `docker-compose.yml`:
+Configure limits in `docker-compose.yml`:
 
 ```yaml
 services:
   backend:
-    # ... outras configurações ...
+    # ... other configurations ...
     deploy:
       resources:
         limits:
@@ -560,57 +560,57 @@ sudo ufw allow 80/tcp       # HTTP
 sudo ufw allow 443/tcp      # HTTPS
 sudo ufw enable
 
-# Bloquear acesso direto a serviços internos
-# (apenas via reverse proxy)
-# NÃO abrir 8000, 5432, 4321 publicamente
+# Block direct access to internal services
+# (only via reverse proxy)
+# DO NOT open 8000, 5432, 4321 publicly
 ```
 
 ---
 
-## 📝 Checklist Final
+## 📝 Final Checklist
 
-- [ ] Secret key alterada
-- [ ] Senhas fortes configuradas
-- [ ] CORS configurado corretamente
-- [ ] Debug mode desabilitado
-- [ ] HTTPS configurado (Nginx/Traefik)
-- [ ] Backups automatizados
-- [ ] Monitoramento configurado
-- [ ] Logs centralizados
-- [ ] Firewall configurado
-- [ ] Limites de recursos definidos
-- [ ] Health checks em produção
-- [ ] CI/CD configurado (opcional)
+- [ ] Secret key changed
+- [ ] Strong passwords configured
+- [ ] CORS properly configured
+- [ ] Debug mode disabled
+- [ ] HTTPS configured (Nginx/Traefik)
+- [ ] Automated backups
+- [ ] Monitoring configured
+- [ ] Centralized logs
+- [ ] Firewall configured
+- [ ] Resource limits defined
+- [ ] Production health checks
+- [ ] CI/CD configured (optional)
 
 ---
 
 ## 🆘 Rollback
 
-Em caso de problemas:
+In case of problems:
 
 ```bash
-# Parar novo deploy
+# Stop new deployment
 docker compose down backend
 
-# Voltar para imagem anterior
+# Revert to previous image
 docker tag local/opamp-backend:latest local/opamp-backend:rollback
-docker pull local/opamp-backend:previous  # Se tiver registry
+docker pull local/opamp-backend:previous  # If you have a registry
 
-# Restaurar backup de database
-gunzip -c backup_anterior.sql.gz | docker exec -i opamp-postgres psql -U opamp -d opamp_db
+# Restore database backup
+gunzip -c backup_previous.sql.gz | docker exec -i opamp-postgres psql -U opamp -d opamp_db
 
-# Subir versão anterior
+# Start previous version
 docker compose up -d backend
 ```
 
 ---
 
-## 📞 Suporte em Produção
+## 📞 Production Support
 
 - Logs: `docker logs -f opamp-backend`
 - Database: `docker exec -it opamp-postgres psql -U opamp -d opamp_db`
-- Health: `curl https://api.seu-dominio.com/health`
+- Health: `curl https://api.your-domain.com/health`
 
 ---
 
-**Boa sorte com o deploy! 🚀**
+**Good luck with the deployment! 🚀**
