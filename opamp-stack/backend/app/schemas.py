@@ -2,7 +2,7 @@
 Pydantic schemas for request/response validation.
 """
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -32,6 +32,14 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class UserListResponse(BaseModel):
+    """Response model for paginated user list."""
+    total: int
+    page: int
+    page_size: int
+    users: List[UserResponse]
 
 
 # ===== Agent Schemas =====

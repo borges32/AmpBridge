@@ -16,6 +16,36 @@ export interface User {
   email?: string;
 }
 
+export interface UserDetail {
+  id: number;
+  name: string;
+  email: string;
+  login: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+  login: string;
+  password: string;
+}
+
+export interface UpdateUserRequest {
+  name?: string;
+  email?: string;
+  is_active?: boolean;
+}
+
+export interface UserListResponse {
+  users: UserDetail[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 // ============================================================================
 // Agent Types
 // ============================================================================

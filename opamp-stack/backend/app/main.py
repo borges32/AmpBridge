@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from app.core.config import settings
-from app.routers import auth, agents, config, opamp
+from app.routers import auth, agents, config, opamp, users
 from app.background import background_tasks
 
 # Configure logging
@@ -79,6 +79,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
+app.include_router(users.router, prefix=settings.API_V1_PREFIX)
 app.include_router(agents.router, prefix=settings.API_V1_PREFIX)
 app.include_router(config.router, prefix=settings.API_V1_PREFIX)
 app.include_router(opamp.router, prefix=settings.API_V1_PREFIX)

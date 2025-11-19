@@ -1,24 +1,24 @@
-# 🚀 Guia Rápido - OpAMP Backend
+# 🚀 Quick Start Guide - OpAMP Backend
 
-Primeiros passos para colocar o sistema no ar e testar funcionalidades.
+First steps to get the system up and running and test functionalities.
 
 ---
 
-## ⚡ Quick Start (5 minutos)
+## ⚡ Quick Start (5 minutes)
 
-### 1. Subir o stack
+### 1. Start the stack
 
 ```bash
 cd opamp-stack
 docker compose up -d
 ```
 
-Aguarde todos os containers ficarem healthy (~30 segundos):
+Wait for all containers to become healthy (~30 seconds):
 ```bash
 docker compose ps
 ```
 
-### 2. Criar primeiro usuário
+### 2. Create first user
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/register \
@@ -31,7 +31,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
   }'
 ```
 
-### 3. Fazer login e obter token
+### 3. Login and obtain token
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
@@ -44,38 +44,38 @@ TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
 echo "Token: $TOKEN"
 ```
 
-### 4. Disparar sincronização manual
+### 4. Trigger manual synchronization
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/opamp/sync \
   -H "Authorization: Bearer $TOKEN" | jq
 ```
 
-### 5. Listar agents
+### 5. List agents
 
 ```bash
 curl http://localhost:8000/api/v1/agents | jq
 ```
 
-**Pronto!** 🎉 O sistema está funcionando.
+**Done!** 🎉 The system is running.
 
 ---
 
-## 📖 Cenários Comuns
+## 📖 Common Scenarios
 
-### Cenário 1: Monitorar agents com alertas de config
+### Scenario 1: Monitor agents with config alerts
 
 ```bash
-# Listar todos os agents
+# List all agents
 curl http://localhost:8000/api/v1/agents | jq '.agents[] | select(.alert_config == true)'
 ```
 
-### Cenário 2: Ver histórico de um agent específico
+### Scenario 2: View history of a specific agent
 
 ```bash
 INSTANCE_ID="019a7534-f534-70ab-bbbc-115e2d231708"
 
-# Dados do agent
+# Agent data
 curl http://localhost:8000/api/v1/agents/$INSTANCE_ID | jq
 
 # Health history
@@ -85,20 +85,20 @@ curl http://localhost:8000/api/v1/agents/$INSTANCE_ID/health | jq
 curl http://localhost:8000/api/v1/agents/$INSTANCE_ID/configs | jq
 ```
 
-### Cenário 3: Baixar configuração de um agent
+### Scenario 3: Download agent configuration
 
 ```bash
-# Última versão
+# Latest version
 curl http://localhost:8000/api/v1/agents/$INSTANCE_ID/config -o config.yaml
 
-# Versão específica
+# Specific version
 curl "http://localhost:8000/api/v1/agents/$INSTANCE_ID/config?version=2" -o config_v2.yaml
 ```
 
-### Cenário 4: Atualizar configuração de um agent
+### Scenario 4: Update agent configuration
 
 ```bash
-# Preparar config em arquivo
+# Prepare config in file
 cat > new_config.yaml << 'EOF'
 receivers:
   otlp:
@@ -119,65 +119,65 @@ service:
       exporters: [logging]
 EOF
 
-# Converter para JSON string (escapar newlines)
+# Convert to JSON string (escape newlines)
 CONFIG_JSON=$(cat new_config.yaml | jq -Rs .)
 
-# Enviar para API
+# Send to API
 curl -X POST "http://localhost:8000/api/v1/config?instance_id=$INSTANCE_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"config\": $CONFIG_JSON}" | jq
 ```
 
-### Cenário 5: Exportar agents para análise
+### Scenario 5: Export agents for analysis
 
 ```bash
 # CSV export
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:8000/api/v1/agents/csv -o agents.csv
 
-# Abrir em Excel/LibreOffice
+# Open in Excel/LibreOffice
 libreoffice agents.csv
 ```
 
 ---
 
-## 🔍 Troubleshooting Rápido
+## 🔍 Quick Troubleshooting
 
-### Backend não inicia
+### Backend doesn't start
 
 ```bash
-# Ver logs
+# View logs
 docker logs opamp-backend
 
-# Verificar se postgres está up
+# Check if postgres is up
 docker compose ps postgres
 
 # Restart backend
 docker compose restart backend
 ```
 
-### Sync não está funcionando
+### Sync not working
 
 ```bash
-# Ver logs de sync
+# View sync logs
 docker logs -f opamp-backend | grep "OpAMP sync"
 
-# Testar conexão com OpAMP
+# Test connection with OpAMP
 docker exec opamp-backend curl http://opamp-server:4321/agents/full
 
-# Forçar sync manual
+# Force manual sync
 curl -X POST http://localhost:8000/api/v1/opamp/sync \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### Erro de autenticação
+### Authentication error
 
 ```bash
-# Verificar token
+# Check token
 echo $TOKEN
 
-# Se vazio, fazer login novamente
+# If empty, login again
 TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
@@ -189,13 +189,13 @@ TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
 ### Database queries
 
 ```bash
-# Conectar ao postgres
+# Connect to postgres
 docker exec -it opamp-postgres psql -U opamp -d opamp_db
 
-# Ver agents
+# View agents
 # opamp_db=# SELECT instance_id, host_name, healthy, alert_config FROM agents;
 
-# Ver configs com alertas
+# View configs with alerts
 # opamp_db=# SELECT a.instance_id, c.version, c.created_at 
 #            FROM agents a 
 #            JOIN agent_configs c ON a.instance_id = c.instance_id 
@@ -204,9 +204,9 @@ docker exec -it opamp-postgres psql -U opamp -d opamp_db
 
 ---
 
-## 🧪 Testes de Desenvolvimento
+## 🧪 Development Tests
 
-### Testar endpoints sem autenticação
+### Test endpoints without authentication
 
 ```bash
 # Health check
@@ -215,19 +215,19 @@ curl http://localhost:8000/health
 # Root
 curl http://localhost:8000/
 
-# Agents (público)
+# Agents (public)
 curl http://localhost:8000/api/v1/agents
 ```
 
-### Testar endpoints COM autenticação
+### Test endpoints WITH authentication
 
 ```bash
-# Obter token
+# Get token
 TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"login": "admin", "password": "admin123"}' | jq -r '.access_token')
 
-# Testar endpoints protegidos
+# Test protected endpoints
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/auth/me
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/agents/csv
 curl -X POST -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/opamp/sync
@@ -235,15 +235,15 @@ curl -X POST -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/opam
 
 ---
 
-## 📊 Monitoramento
+## 📊 Monitoring
 
-### Ver estatísticas de sync
+### View sync statistics
 
 ```bash
-# Logs em tempo real
+# Real-time logs
 docker logs -f opamp-backend | grep "sync"
 
-# Última linha de sync
+# Last sync line
 docker logs opamp-backend | grep "OpAMP sync completed" | tail -1
 ```
 
@@ -260,7 +260,7 @@ curl http://localhost:4321/
 docker exec opamp-postgres pg_isready -U opamp
 ```
 
-### Métricas do database
+### Database metrics
 
 ```bash
 docker exec -it opamp-postgres psql -U opamp -d opamp_db -c "
@@ -288,49 +288,49 @@ FROM users;
 
 ---
 
-## 🛠️ Comandos Úteis
+## 🛠️ Useful Commands
 
 ### Docker Compose
 
 ```bash
-# Subir tudo
+# Start everything
 docker compose up -d
 
-# Ver status
+# View status
 docker compose ps
 
-# Ver logs
+# View logs
 docker compose logs -f backend
 
-# Restart serviço
+# Restart service
 docker compose restart backend
 
-# Parar tudo
+# Stop everything
 docker compose down
 
-# Parar e remover volumes (CUIDADO: perde dados)
+# Stop and remove volumes (WARNING: loses data)
 docker compose down -v
 ```
 
 ### Database
 
 ```bash
-# Conectar ao PostgreSQL
+# Connect to PostgreSQL
 docker exec -it opamp-postgres psql -U opamp -d opamp_db
 
-# Listar todas as tabelas
+# List all tables
 docker exec -it opamp-postgres psql -U opamp -d opamp_db -c "\dt"
 
-# Verificar se as tabelas foram criadas
+# Check if tables were created
 docker exec -it opamp-postgres psql -U opamp -d opamp_db -c "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
 
-# Contar registros em cada tabela
+# Count records in each table
 docker exec -it opamp-postgres psql -U opamp -d opamp_db -c "SELECT COUNT(*) FROM users;"
 docker exec -it opamp-postgres psql -U opamp -d opamp_db -c "SELECT COUNT(*) FROM agents;"
 docker exec -it opamp-postgres psql -U opamp -d opamp_db -c "SELECT COUNT(*) FROM agent_health;"
 docker exec -it opamp-postgres psql -U opamp -d opamp_db -c "SELECT COUNT(*) FROM agent_configs;"
 
-# Ver últimos agents sincronizados
+# View last synchronized agents
 docker exec -it opamp-postgres psql -U opamp -d opamp_db -c "SELECT instance_id, is_connected, last_connection_time FROM agents ORDER BY last_connection_time DESC LIMIT 5;"
 
 # Backup
@@ -343,26 +343,26 @@ cat backup.sql | docker exec -i opamp-postgres psql -U opamp -d opamp_db
 ### Migrations
 
 ```bash
-# Ver status
+# View status
 docker exec opamp-backend alembic current
 
-# Aplicar todas
+# Apply all
 docker exec opamp-backend alembic upgrade head
 
-# Voltar uma versão
+# Rollback one version
 docker exec opamp-backend alembic downgrade -1
 ```
 
 ---
 
-## 🎯 Próximos Passos
+## 🎯 Next Steps
 
-1. ✅ Sistema funcionando
-2. 📱 Explorar API via Swagger: http://localhost:8000/docs
-3. 🔐 Criar usuários adicionais
-4. 📊 Configurar sincronização automática
-5. 🚀 Integrar com aplicação frontend (futuro)
+1. ✅ System running
+2. 📱 Explore API via Swagger: http://localhost:8000/docs
+3. 🔐 Create additional users
+4. 📊 Configure automatic synchronization
+5. 🚀 Integrate with frontend application (future)
 
 ---
 
-**Precisa de ajuda?** Consulte o [README.md](README.md) completo ou [ARCHITECTURE.md](ARCHITECTURE.md) para detalhes.
+**Need help?** Check the complete [README.md](README.md) or [ARCHITECTURE.md](ARCHITECTURE.md) for details.

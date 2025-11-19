@@ -9,6 +9,7 @@ import AgentsPage from '@/pages/AgentsPage';
 import AgentHealthPage from '@/pages/AgentHealthPage';
 import ConfigEditorPage from '@/pages/ConfigEditorPage';
 import ConfigHistoryPage from '@/pages/ConfigHistoryPage';
+import UsersPage from '@/pages/UsersPage';
 import '@/styles/index.css';
 
 // ============================================================================
@@ -50,6 +51,7 @@ const App: React.FC = () => {
                 <Route path="/agents/:instanceId/health" element={<AgentHealthPage />} />
                 <Route path="/agents/:instanceId/config" element={<ConfigEditorPage />} />
                 <Route path="/agents/:instanceId/config/history" element={<ConfigHistoryPage />} />
+                <Route path="/users" element={<UsersPage />} />
               </Route>
 
               {/* Default Redirect */}

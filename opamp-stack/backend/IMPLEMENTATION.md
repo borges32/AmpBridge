@@ -56,6 +56,7 @@
 │                                                       │
 │  📡 ROUTERS (API Layer)                              │
 │  ├── auth.py         → Authentication                │
+│  ├── users.py        → User management ⭐ NEW        │
 │  ├── agents.py       → Agent management              │
 │  ├── config.py       → Configurations                │
 │  └── opamp.py        → Synchronization               │
@@ -104,7 +105,7 @@ Endpoints:
 
 ---
 
-### 4. 📡 **Complete REST API** (17+ endpoints)
+### 4. 📡 **Complete REST API** (22+ endpoints)
 
 #### **Authentication**
 ```
@@ -113,15 +114,25 @@ Endpoints:
 ✅ GET    /api/v1/auth/me             → Current user info (auth)
 ```
 
+#### **User Management** ⭐ NEW
+```
+✅ GET    /api/v1/users                → List users (paginated, auth)
+✅ GET    /api/v1/users/{id}           → Get user details (auth)
+✅ POST   /api/v1/users                → Create user (auth)
+✅ PUT    /api/v1/users/{id}           → Update user (auth)
+✅ DELETE /api/v1/users/{id}           → Delete user (auth, self-protection)
+```
+
 #### **Agents**
 ```
-✅ GET    /api/v1/agents                      → List agents (paginated)
-✅ GET    /api/v1/agents/stats                → Agent statistics
-✅ GET    /api/v1/agents/{id}                 → Agent details
-✅ GET    /api/v1/agents/{id}/health          → General health history
-✅ GET    /api/v1/agents/{id}/pipelines/health ⭐ NEW → Health by pipeline
-✅ GET    /api/v1/agents/{id}/configs         → Config history
-✅ GET    /api/v1/agents/{id}/config          → Download YAML config
+✅ GET    /api/v1/agents                      → List agents (paginated, auth)
+✅ GET    /api/v1/agents/stats                → Agent statistics (auth)
+✅ GET    /api/v1/agents/{id}                 → Agent details (auth)
+✅ GET    /api/v1/agents/{id}/health          → General health history (auth)
+✅ GET    /api/v1/agents/{id}/pipelines/health ⭐ → Health by pipeline (auth)
+✅ GET    /api/v1/agents/{id}/configs         → Config history (auth)
+✅ GET    /api/v1/agents/{id}/config          → Download YAML config (auth)
+✅ POST   /api/v1/agents/{id}/config/restore  → Restore config version (auth) ⭐ NEW
 ✅ GET    /api/v1/agents/csv                  → CSV export (auth)
 ```
 
@@ -296,6 +307,7 @@ backend/
     │   ├── user_repository.py
     │   ├── agent_repository.py
     │   ├── agent_health_repository.py
+    │   ├── agent_pipeline_health_repository.py
     │   └── agent_config_repository.py
     │
     ├── services/
@@ -306,7 +318,11 @@ backend/
     └── routers/
         ├── __init__.py
         ├── auth.py
+        ├── users.py         ⭐ NEW
         ├── agents.py
+        ├── config.py
+        └── opamp.py
+```
         ├── config.py
         └── opamp.py
 ```
@@ -329,6 +345,9 @@ backend/
 - [x] Change traceability
 - [x] Data export (CSV, YAML)
 - [x] Complete Dockerization
+- [x] User CRUD management ⭐ NEW
+- [x] Config restore functionality ⭐ NEW
+- [x] Pipeline health monitoring ⭐ NEW
 
 ### ✅ Additional Features
 
@@ -341,6 +360,41 @@ backend/
 - [x] Optimized database indexes
 - [x] Structured logging
 - [x] Disconnected agent detection
+- [x] Self-deletion protection ⭐ NEW
+- [x] Email uniqueness validation ⭐ NEW
+- [x] All endpoints require authentication ⭐ NEW
+
+---
+
+## 🔒 SECURITY FEATURES ⭐ NEW
+
+### Authentication & Authorization
+```
+✅ JWT token-based authentication
+✅ Password hashing with bcrypt
+✅ Token expiration (30 min default)
+✅ Protected endpoints (Bearer token required)
+✅ Self-deletion protection (users cannot delete themselves)
+✅ Automatic logout on 401 errors
+```
+
+### Data Validation
+```
+✅ Email format validation
+✅ Login uniqueness check
+✅ Email uniqueness check
+✅ Minimum password length (8 characters)
+✅ Field validation on all inputs
+```
+
+### API Security
+```
+✅ CORS configured
+✅ All critical endpoints protected
+✅ User management requires authentication
+✅ Configuration changes require authentication
+✅ Export operations require authentication
+```
 
 ---
 
@@ -383,6 +437,54 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 http://localhost:8000/docs
 ```
 
+### 5. User Management Examples ⭐ NEW
+
+#### List users
+```bash
+TOKEN="your_jwt_token_here"
+
+curl -X GET "http://localhost:8000/api/v1/users?page=1&page_size=10" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### Create user
+```bash
+curl -X POST http://localhost:8000/api/v1/users \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "login": "johndoe",
+    "password": "secure123"
+  }'
+```
+
+#### Update user
+```bash
+curl -X PUT http://localhost:8000/api/v1/users/2 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe Updated",
+    "is_active": false
+  }'
+```
+
+#### Delete user
+```bash
+curl -X DELETE http://localhost:8000/api/v1/users/2 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### 6. Config Restore Example ⭐ NEW
+
+```bash
+# Restore a previous configuration version
+curl -X POST "http://localhost:8000/api/v1/agents/{instance_id}/config/restore?version=1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ---
 
 ## 📊 PROJECT METRICS
@@ -392,16 +494,18 @@ http://localhost:8000/docs
 │ STATISTICS                              │
 ├─────────────────────────────────────────┤
 │                                          │
-│  📝 Lines of code: ~3000+               │
-│  📄 Files created: ~40                  │
-│  🗄️ DB tables: 4                        │
-│  📡 REST endpoints: 15+                 │
+│  📝 Lines of code: ~3500+               │
+│  📄 Files created: ~45                  │
+│  🗄️ DB tables: 5                        │
+│  📡 REST endpoints: 22+                 │
 │  🔐 Authentication: JWT                 │
 │  🐳 Containers: 4                       │
 │  📚 Documents: 7                        │
 │  ⚡ Performance: Async/Await            │
 │  🔄 Sync interval: 60s (configurable)   │
 │  📦 Dependencies: 15+                   │
+│  👥 User management: Full CRUD          │
+│  🔒 Security: All endpoints protected   │
 │                                          │
 └─────────────────────────────────────────┘
 ```

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Avatar, Dropdown, Button } from 'antd';
-import { UserOutlined, LogoutOutlined, ApiOutlined } from '@ant-design/icons';
+import { UserOutlined, LogoutOutlined, ApiOutlined, TeamOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import type { MenuProps } from 'antd';
@@ -42,6 +42,14 @@ const Header: React.FC = () => {
       <div className="flex items-center gap-4">
         <Button type="text" onClick={() => navigate('/agents')}>
           Agents
+        </Button>
+        
+        <Button 
+          type="text" 
+          icon={<TeamOutlined />}
+          onClick={() => navigate('/users')}
+        >
+          Users
         </Button>
 
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">

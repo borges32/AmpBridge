@@ -2,9 +2,9 @@
 Repository layer for database operations.
 Provides CRUD operations for User model.
 """
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 
 from app.models.models import User
@@ -71,3 +71,18 @@ class UserRepository:
         """Delete a user."""
         await self.db.delete(user)
         await self.db.commit()
+    
+    async def get_all(self, skip: int = 0, limit: int = 100) -> List[User]:
+        """Get all users with pagination."""
+        result = await self.db.execute(
+            select(User)
+            .order_by(User.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+    
+    async def count(self) -> int:
+        """Count total number of users."""
+        result = await self.db.execute(select(func.count(User.id)))
+        return result.scalar_one()

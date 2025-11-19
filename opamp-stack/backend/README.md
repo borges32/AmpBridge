@@ -1,73 +1,73 @@
 # OpAMP Backend API
 
-Sistema backend completo para gerenciamento e sincronização de agents OpAMP, com API REST, autenticação JWT, versionamento de configurações e sincronização automática.
+Complete backend system for managing and synchronizing OpAMP agents, with REST API, JWT authentication, configuration versioning, and automatic synchronization.
 
 ---
 
-## 📋 Índice
+## 📋 Table of Contents
 
-- [Arquitetura](#arquitetura)
-- [Stack Tecnológica](#stack-tecnológica)
-- [Modelagem do Banco de Dados](#modelagem-do-banco-de-dados)
-- [Estrutura do Projeto](#estrutura-do-projeto)
-- [Instalação e Execução](#instalação-e-execução)
-- [Endpoints da API](#endpoints-da-api)
-- [Exemplos de Uso](#exemplos-de-uso)
-- [Sincronização com OpAMP](#sincronização-com-opamp)
-- [Versionamento de Configurações](#versionamento-de-configurações)
+- [Architecture](#architecture)
+- [Technology Stack](#technology-stack)
+- [Database Modeling](#database-modeling)
+- [Project Structure](#project-structure)
+- [Installation and Execution](#installation-and-execution)
+- [API Endpoints](#api-endpoints)
+- [Usage Examples](#usage-examples)
+- [OpAMP Synchronization](#opamp-synchronization)
+- [Configuration Versioning](#configuration-versioning)
 
 ---
 
-## 🏗️ Arquitetura
+## 🏗️ Architecture
 
-### Stack Escolhida: **FastAPI + PostgreSQL + SQLAlchemy**
+### Chosen Stack: **FastAPI + PostgreSQL + SQLAlchemy**
 
-**Justificativa da escolha:**
+**Justification for the choice:**
 
-1. **FastAPI**: Framework moderno e de alto desempenho para APIs em Python
-   - Suporte nativo a async/await
-   - Validação automática com Pydantic
-   - Documentação automática (Swagger/OpenAPI)
-   - Excelente performance (comparável a Node.js e Go)
+1. **FastAPI**: Modern and high-performance framework for Python APIs
+   - Native async/await support
+   - Automatic validation with Pydantic
+   - Automatic documentation (Swagger/OpenAPI)
+   - Excellent performance (comparable to Node.js and Go)
 
-2. **PostgreSQL**: Banco de dados relacional robusto
+2. **PostgreSQL**: Robust relational database
    - ACID compliance
-   - Suporte a JSON para dados flexíveis
-   - Excelente para versionamento e histórico
+   - JSON support for flexible data
+   - Excellent for versioning and history
 
-3. **SQLAlchemy 2.0**: ORM moderno com suporte async
-   - Migrations com Alembic
-   - Type hints completos
-   - Performance otimizada
+3. **SQLAlchemy 2.0**: Modern ORM with async support
+   - Migrations with Alembic
+   - Complete type hints
+   - Optimized performance
 
-### Camadas da Aplicação
+### Application Layers
 
 ```
 ┌─────────────────────────────────────┐
-│         Routers (API Layer)         │  ← Endpoints REST
+│         Routers (API Layer)         │  ← REST Endpoints
 ├─────────────────────────────────────┤
-│      Services (Business Logic)      │  ← Regras de negócio
+│      Services (Business Logic)      │  ← Business rules
 ├─────────────────────────────────────┤
-│    Repositories (Data Access)       │  ← Acesso a dados
+│    Repositories (Data Access)       │  ← Data access
 ├─────────────────────────────────────┤
 │      Models (Database Layer)        │  ← SQLAlchemy Models
 └─────────────────────────────────────┘
 ```
 
-**Componentes principais:**
+**Main components:**
 
-- **Routers**: Definem endpoints e validação de requests/responses
-- **Services**: Implementam lógica de negócio (sync OpAMP, versionamento)
-- **Repositories**: Encapsulam operações de banco de dados
-- **Models**: Definem estrutura das tabelas (SQLAlchemy)
-- **Schemas**: Validação de dados (Pydantic)
-- **Core**: Configuração, segurança, database
+- **Routers**: Define endpoints and request/response validation
+- **Services**: Implement business logic (OpAMP sync, versioning)
+- **Repositories**: Encapsulate database operations
+- **Models**: Define table structure (SQLAlchemy)
+- **Schemas**: Data validation (Pydantic)
+- **Core**: Configuration, security, database
 
 ---
 
-## 💻 Stack Tecnológica
+## 💻 Technology Stack
 
-| Componente | Tecnologia | Versão |
+| Component | Technology | Version |
 |------------|-----------|--------|
 | Runtime | Python | 3.11+ |
 | Framework | FastAPI | 0.104+ |
@@ -82,9 +82,9 @@ Sistema backend completo para gerenciamento e sincronização de agents OpAMP, c
 
 ---
 
-## 🗄️ Modelagem do Banco de Dados
+## 🗄️ Database Modeling
 
-### Diagrama ER
+### ER Diagram
 
 ```
 ┌─────────────────┐
@@ -160,129 +160,129 @@ Sistema backend completo para gerenciamento e sincronização de agents OpAMP, c
 └─────────────────────────────┘
 ```
 
-### Tabelas Detalhadas
+### Detailed Tables
 
 #### 1. **users**
-Armazena usuários do sistema backend.
+Stores backend system users.
 
-| Campo | Tipo | Descrição |
+| Field | Type | Description |
 |-------|------|-----------|
-| id | INTEGER | Chave primária |
-| name | VARCHAR(255) | Nome completo |
-| email | VARCHAR(255) | Email (único) |
-| login | VARCHAR(100) | Login (único) |
-| password_hash | VARCHAR(255) | Hash bcrypt da senha |
-| is_active | BOOLEAN | Status ativo/inativo |
-| created_at | TIMESTAMP | Data de criação |
-| updated_at | TIMESTAMP | Data de atualização |
+| id | INTEGER | Primary key |
+| name | VARCHAR(255) | Full name |
+| email | VARCHAR(255) | Email (unique) |
+| login | VARCHAR(100) | Login (unique) |
+| password_hash | VARCHAR(255) | Bcrypt password hash |
+| is_active | BOOLEAN | Active/inactive status |
+| created_at | TIMESTAMP | Creation date |
+| updated_at | TIMESTAMP | Update date |
 
-**Índices:**
+**Indexes:**
 - `ix_users_email` (UNIQUE)
 - `ix_users_login` (UNIQUE)
 
 #### 2. **agents**
-Armazena informações dos agents OpAMP.
+Stores OpAMP agent information.
 
-| Campo | Tipo | Descrição |
+| Field | Type | Description |
 |-------|------|-----------|
-| id | INTEGER | Chave primária |
-| instance_id | VARCHAR(255) | ID do agent (único) |
-| host_name | VARCHAR(255) | Nome do host |
-| os_type | VARCHAR(100) | Tipo de SO |
-| os_description | VARCHAR(500) | Descrição do SO |
-| healthy | BOOLEAN | Status de saúde |
+| id | INTEGER | Primary key |
+| instance_id | VARCHAR(255) | Agent ID (unique) |
+| host_name | VARCHAR(255) | Host name |
+| os_type | VARCHAR(100) | OS type |
+| os_description | VARCHAR(500) | OS description |
+| healthy | BOOLEAN | Health status |
 | status_sync | VARCHAR(50) | IN_SYNC / OUT_OF_SYNC / UNKNOWN |
-| alert_config | BOOLEAN | Alerta de divergência |
-| is_connected | BOOLEAN | Status de conexão |
-| started_at | TIMESTAMP | Data de início do agent |
-| last_seen_at | TIMESTAMP | Última vez visto |
-| created_at | TIMESTAMP | Data de criação |
-| updated_at | TIMESTAMP | Data de atualização |
+| alert_config | BOOLEAN | Divergence alert |
+| is_connected | BOOLEAN | Connection status |
+| started_at | TIMESTAMP | Agent start date |
+| last_seen_at | TIMESTAMP | Last seen |
+| created_at | TIMESTAMP | Creation date |
+| updated_at | TIMESTAMP | Update date |
 
-**Índices:**
+**Indexes:**
 - `ix_agents_instance_id` (UNIQUE)
 - `idx_agent_status` (status_sync, is_connected)
 - `idx_agent_alert` (alert_config)
 
 #### 3. **agent_health**
-Histórico de saúde dos agents.
+Agent health history.
 
-| Campo | Tipo | Descrição |
+| Field | Type | Description |
 |-------|------|-----------|
-| id | INTEGER | Chave primária |
-| instance_id | VARCHAR(255) | FK para agents |
-| healthy | BOOLEAN | Status de saúde |
+| id | INTEGER | Primary key |
+| instance_id | VARCHAR(255) | FK to agents |
+| healthy | BOOLEAN | Health status |
 | status | VARCHAR(100) | StatusOK, StatusFailed, etc |
-| status_time_unix_nano | BIGINT | Timestamp Unix nano |
-| last_error | TEXT | Último erro |
-| component_health_summary | TEXT | Resumo de componentes |
-| created_at | TIMESTAMP | Data de criação |
+| status_time_unix_nano | BIGINT | Unix nano timestamp |
+| last_error | TEXT | Last error |
+| component_health_summary | TEXT | Component summary |
+| created_at | TIMESTAMP | Creation date |
 
-**Índices:**
+**Indexes:**
 - `ix_agent_health_instance_id`
 - `idx_health_instance_created` (instance_id, created_at)
 
-**⚠️ Limitação de Registros:**
-- Sistema mantém automaticamente apenas os **últimos 10 registros** por agent
-- Limpeza executada a cada sincronização com OpAMP
-- Garante performance e controle do crescimento do banco
+**⚠️ Record Limitation:**
+- System automatically maintains only the **last 10 records** per agent
+- Cleanup executed at each OpAMP synchronization
+- Ensures performance and database growth control
 
-#### 4. **agent_pipeline_health** ⭐ NOVO
-Estado atual dos componentes e pipelines de cada agent (estrutura hierárquica).
+#### 4. **agent_pipeline_health** ⭐ NEW
+Current state of components and pipelines for each agent (hierarchical structure).
 
-| Campo | Tipo | Descrição |
+| Field | Type | Description |
 |-------|------|-----------|
-| id | INTEGER | Chave primária |
-| instance_id | VARCHAR(255) | FK para agents |
-| component_type | VARCHAR(50) | Tipo: extensions, pipeline, extension, exporter, processor, receiver |
-| component_name | VARCHAR(255) | Nome do componente |
-| parent_pipeline | VARCHAR(255) | Pipeline pai (para sub-componentes) |
-| healthy | BOOLEAN | Status de saúde do componente |
+| id | INTEGER | Primary key |
+| instance_id | VARCHAR(255) | FK to agents |
+| component_type | VARCHAR(50) | Type: extensions, pipeline, extension, exporter, processor, receiver |
+| component_name | VARCHAR(255) | Component name |
+| parent_pipeline | VARCHAR(255) | Parent pipeline (for sub-components) |
+| healthy | BOOLEAN | Component health status |
 | status | VARCHAR(100) | StatusOK, StatusFailed, etc |
-| status_time_unix_nano | BIGINT | Timestamp Unix nano |
-| last_error | TEXT | Último erro do componente |
-| created_at | TIMESTAMP | Data de criação |
+| status_time_unix_nano | BIGINT | Unix nano timestamp |
+| last_error | TEXT | Component last error |
+| created_at | TIMESTAMP | Creation date |
 
-**Índices:**
+**Indexes:**
 - `ix_agent_pipeline_health_instance_id`
 - `idx_pipeline_health_instance_created` (instance_id, created_at)
 - `idx_pipeline_health_component` (component_type, component_name)
 - `idx_pipeline_health_parent` (parent_pipeline)
 
-**⚠️ Comportamento:**
-- **Não mantém histórico** - cada sincronização substitui completamente os dados
-- A cada sync, todos os registros antigos do agent são deletados
-- Grava o estado atual de TODOS os componentes do agent em estrutura hierárquica
-- **Componentes coletados:**
-  - `extensions` (grupo geral)
-  - `extension:xxx` (extensões individuais, ex: opamp, zpages)
-  - `pipeline:xxx` (pipelines, ex: metrics/base)
-  - `exporter:xxx`, `processor:xxx`, `receiver:xxx` (sub-componentes dos pipelines)
-- Ideal para visualização do estado atual, não para análise histórica
+**⚠️ Behavior:**
+- **Does not maintain history** - each synchronization completely replaces the data
+- At each sync, all old agent records are deleted
+- Records the current state of ALL agent components in hierarchical structure
+- **Collected components:**
+  - `extensions` (general group)
+  - `extension:xxx` (individual extensions, e.g.: opamp, zpages)
+  - `pipeline:xxx` (pipelines, e.g.: metrics/base)
+  - `exporter:xxx`, `processor:xxx`, `receiver:xxx` (pipeline sub-components)
+- Ideal for current state visualization, not for historical analysis
 
 #### 5. **agent_configs**
-Versionamento de configurações dos agents.
+Agent configuration versioning.
 
-| Campo | Tipo | Descrição |
+| Field | Type | Description |
 |-------|------|-----------|
-| id | INTEGER | Chave primária |
-| instance_id | VARCHAR(255) | FK para agents |
-| version | INTEGER | Número da versão |
-| effective_config | TEXT | Configuração YAML/JSON |
-| config_hash | VARCHAR(64) | SHA256 hash para detecção |
+| id | INTEGER | Primary key |
+| instance_id | VARCHAR(255) | FK to agents |
+| version | INTEGER | Version number |
+| effective_config | TEXT | YAML/JSON configuration |
+| config_hash | VARCHAR(64) | SHA256 hash for detection |
 | source | VARCHAR(50) | SYNC_JOB / MANUAL_UPDATE / API_UPDATE |
-| updated_by_user_id | INTEGER | FK para users (nullable) |
-| created_at | TIMESTAMP | Data de criação |
-| updated_at | TIMESTAMP | Data de atualização |
+| updated_by_user_id | INTEGER | FK to users (nullable) |
+| created_at | TIMESTAMP | Creation date |
+| updated_at | TIMESTAMP | Update date |
 
-**Índices:**
+**Indexes:**
 - `ix_agent_configs_instance_id`
 - `idx_config_instance_version` (instance_id, version)
 - `idx_config_hash` (config_hash)
 
 ---
 
-## 📁 Estrutura do Projeto
+## 📁 Project Structure
 
 ```
 backend/
@@ -542,12 +542,12 @@ cat backup_20251117_100000.sql | docker exec -i opamp-postgres psql -U opamp -d 
 
 Você pode usar clientes GUI como **pgAdmin**, **DBeaver** ou **TablePlus** para conectar ao banco:
 
-**Credenciais de conexão:**
+**Connection credentials:**
 - **Host:** `localhost`
-- **Porta:** `5432`
+- **Port:** `5432`
 - **Database:** `opamp_db`
-- **Usuário:** `opamp`
-- **Senha:** `opamp123` (conforme definido no `docker-compose.yml`)
+- **User:** `opamp`
+- **Password:** `opamp123` (as defined in `docker-compose.yml`)
 
 ---
 
@@ -558,10 +558,10 @@ Você pode usar clientes GUI como **pgAdmin**, **DBeaver** ou **TablePlus** para
 http://localhost:8000/api/v1
 ```
 
-### Autenticação
+### Authentication
 
 #### `POST /api/v1/auth/register`
-Registra um novo usuário.
+Register a new user.
 
 **Request Body:**
 ```json
@@ -587,7 +587,7 @@ Registra um novo usuário.
 ```
 
 #### `POST /api/v1/auth/login`
-Autentica usuário e retorna token JWT.
+Authenticate user and return JWT token.
 
 **Request Body:**
 ```json
@@ -606,7 +606,7 @@ Autentica usuário e retorna token JWT.
 ```
 
 #### `GET /api/v1/auth/me`
-Retorna informações do usuário autenticado.
+Return authenticated user information.
 
 **Headers:**
 ```
@@ -631,11 +631,11 @@ Authorization: Bearer <token>
 ### Agents
 
 #### `GET /api/v1/agents`
-Lista todos os agents com paginação.
+List all agents with pagination.
 
 **Query Parameters:**
-- `page` (default: 1): Número da página
-- `page_size` (default: 50, max: 500): Itens por página
+- `page` (default: 1): Page number
+- `page_size` (default: 50, max: 500): Items per page
 
 **Response:** `200 OK`
 ```json
@@ -664,7 +664,7 @@ Lista todos os agents com paginação.
 ```
 
 #### `GET /api/v1/agents/{instance_id}`
-Detalhes de um agent específico.
+Details of a specific agent.
 
 **Response:** `200 OK`
 ```json
@@ -686,10 +686,10 @@ Detalhes de um agent específico.
 ```
 
 #### `GET /api/v1/agents/{instance_id}/health`
-Histórico de saúde de um agent.
+Health history of an agent.
 
 **Query Parameters:**
-- `limit` (default: 100, max: 1000): Número de registros
+- `limit` (default: 100, max: 1000): Number of records
 
 **Response:** `200 OK`
 ```json
@@ -707,14 +707,14 @@ Histórico de saúde de um agent.
 ]
 ```
 
-**⚠️ Nota:** O sistema mantém automaticamente apenas os últimos 10 registros por agent.
+**⚠️ Note:** The system automatically maintains only the last 10 records per agent.
 
-#### `GET /api/v1/agents/{instance_id}/pipelines/health` ⭐ NOVO
-Estado atual da saúde dos pipelines de um agent.
+#### `GET /api/v1/agents/{instance_id}/pipelines/health` ⭐ NEW
+Current health status of agent pipelines.
 
 **Query Parameters:**
-- `pipeline_name` (optional): Filtrar por pipeline específico
-- `limit` (default: 100, max: 1000): Número de registros
+- `pipeline_name` (optional): Filter by specific pipeline
+- `limit` (default: 100, max: 1000): Number of records
 
 **Response:** `200 OK`
 ```json
@@ -732,21 +732,21 @@ Estado atual da saúde dos pipelines de um agent.
 ]
 ```
 
-**⚠️ Nota:** 
-- Não mantém histórico - retorna apenas o estado atual dos pipelines
-- Dados são substituídos a cada sincronização (60s)
-- Ideal para monitoramento em tempo real
+**⚠️ Note:** 
+- Does not maintain history - returns only current pipeline state
+- Data is replaced at each synchronization (60s)
+- Ideal for real-time monitoring
 
-**Exemplo - Filtrar por pipeline:**
+**Example - Filter by pipeline:**
 ```bash
 curl "http://localhost:8000/api/v1/agents/{instance_id}/pipelines/health?pipeline_name=metrics/base"
 ```
 
 #### `GET /api/v1/agents/{instance_id}/configs`
-Histórico de configurações de um agent.
+Configuration history of an agent.
 
 **Query Parameters:**
-- `limit` (default: 100, max: 1000): Número de versões
+- `limit` (default: 100, max: 1000): Number of versions
 
 **Response:** `200 OK`
 ```json
@@ -766,10 +766,10 @@ Histórico de configurações de um agent.
 ```
 
 #### `GET /api/v1/agents/{instance_id}/config`
-Download do arquivo YAML de configuração.
+Download YAML configuration file.
 
 **Query Parameters:**
-- `version` (optional): Versão específica (default: última)
+- `version` (optional): Specific version (default: latest)
 
 **Response:** `200 OK`
 ```
@@ -785,7 +785,7 @@ receivers:
 ```
 
 #### `GET /api/v1/agents/csv`
-Exporta todos os agents para CSV.
+Export all agents to CSV.
 
 **Headers:**
 ```
@@ -806,7 +806,7 @@ Instance ID,Host Name,OS Type,...
 ### Configuration
 
 #### `POST /api/v1/config?instance_id=<id>`
-Atualiza configuração de um agent.
+Update agent configuration.
 
 **Headers:**
 ```
@@ -836,7 +836,7 @@ Authorization: Bearer <token>
 ### OpAMP Sync
 
 #### `POST /api/v1/opamp/sync`
-Sincronização manual com OpAMP server.
+Manual synchronization with OpAMP server.
 
 **Headers:**
 ```
@@ -857,12 +857,12 @@ Authorization: Bearer <token>
 
 ---
 
-## 🔧 Exemplos de Uso
+## 🔧 Usage Examples
 
-### 1. Registro e Login
+### 1. Registration and Login
 
 ```bash
-# Registrar usuário
+# Register user
 curl -X POST http://localhost:8000/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
@@ -883,17 +883,17 @@ TOKEN=$(curl -X POST http://localhost:8000/api/v1/auth/login \
 echo $TOKEN
 ```
 
-### 2. Listar Agents
+### 2. List Agents
 
 ```bash
-# Sem autenticação (endpoint público)
+# Without authentication (public endpoint)
 curl http://localhost:8000/api/v1/agents?page=1&page_size=10 | jq
 
-# Com paginação
+# With pagination
 curl http://localhost:8000/api/v1/agents?page=2&page_size=20 | jq
 ```
 
-### 3. Detalhes de um Agent
+### 3. Agent Details
 
 ```bash
 INSTANCE_ID="019a7534-f534-70ab-bbbc-115e2d231708"
@@ -901,31 +901,31 @@ INSTANCE_ID="019a7534-f534-70ab-bbbc-115e2d231708"
 curl http://localhost:8000/api/v1/agents/$INSTANCE_ID | jq
 ```
 
-### 4. Histórico de Saúde
+### 4. Health History
 
 ```bash
 curl "http://localhost:8000/api/v1/agents/$INSTANCE_ID/health?limit=50" | jq
 ```
 
-### 5. Histórico de Configurações
+### 5. Configuration History
 
 ```bash
 curl "http://localhost:8000/api/v1/agents/$INSTANCE_ID/configs?limit=10" | jq
 ```
 
-### 6. Download de Configuração
+### 6. Download Configuration
 
 ```bash
-# Última versão
+# Latest version
 curl "http://localhost:8000/api/v1/agents/$INSTANCE_ID/config" \
   -o config.yaml
 
-# Versão específica
+# Specific version
 curl "http://localhost:8000/api/v1/agents/$INSTANCE_ID/config?version=2" \
   -o config_v2.yaml
 ```
 
-### 7. Exportar Agents para CSV
+### 7. Export Agents to CSV
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
@@ -933,7 +933,7 @@ curl -H "Authorization: Bearer $TOKEN" \
   -o agents.csv
 ```
 
-### 8. Atualizar Configuração de um Agent
+### 8. Update Agent Configuration
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/config?instance_id=$INSTANCE_ID" \
@@ -944,7 +944,7 @@ curl -X POST "http://localhost:8000/api/v1/config?instance_id=$INSTANCE_ID" \
   }' | jq
 ```
 
-### 9. Sincronização Manual
+### 9. Manual Synchronization
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/opamp/sync \
@@ -953,25 +953,25 @@ curl -X POST http://localhost:8000/api/v1/opamp/sync \
 
 ---
 
-## 🔄 Sincronização com OpAMP
+## 🔄 OpAMP Synchronization
 
-### 1. Job Automático (Background Task)
+### 1. Automatic Job (Background Task)
 
-O backend executa automaticamente um job de sincronização a cada **60 segundos** (configurável via `OPAMP_SYNC_INTERVAL_SECONDS`).
+The backend automatically executes a synchronization job every **60 seconds** (configurable via `OPAMP_SYNC_INTERVAL_SECONDS`).
 
-**Funcionamento:**
+**How it works:**
 
-1. Faz GET para `http://opamp-server:4321/agents/full`
-2. Para cada agent retornado:
-   - Atualiza/insere dados básicos em `agents`
-   - Cria registro de health em `agent_health`
-   - Verifica se o `effective_config` mudou (via hash SHA256)
-   - Se mudou:
-     - Cria nova versão em `agent_configs`
-     - Marca `alert_config = true` e `status_sync = OUT_OF_SYNC`
-   - Se não mudou e havia alerta:
-     - Limpa `alert_config` e marca `status_sync = IN_SYNC`
-3. Marca como desconectados (`is_connected = false`) agents que não estão mais no OpAMP
+1. Makes GET to `http://opamp-server:4321/agents/full`
+2. For each returned agent:
+   - Updates/inserts basic data in `agents`
+   - Creates health record in `agent_health`
+   - Checks if `effective_config` changed (via SHA256 hash)
+   - If changed:
+     - Creates new version in `agent_configs`
+     - Marks `alert_config = true` and `status_sync = OUT_OF_SYNC`
+   - If not changed and there was an alert:
+     - Clears `alert_config` and marks `status_sync = IN_SYNC`
+3. Marks as disconnected (`is_connected = false`) agents that are no longer in OpAMP
 
 **Logs:**
 ```
@@ -979,45 +979,45 @@ INFO - Running OpAMP sync...
 INFO - OpAMP sync completed: 10 processed, 10 updated, 2 configs versioned
 ```
 
-### 2. Endpoint de Sincronização Manual
+### 2. Manual Synchronization Endpoint
 
-Permite disparar sincronização sob demanda via:
+Allows triggering synchronization on demand via:
 ```bash
 POST /api/v1/opamp/sync
 ```
 
-Útil para:
-- Testar sincronização
-- Forçar atualização imediata
-- Integração com webhooks externos
+Useful for:
+- Testing synchronization
+- Forcing immediate update
+- Integration with external webhooks
 
 ---
 
-## 📦 Versionamento de Configurações
+## 📦 Configuration Versioning
 
-### Como Funciona
+### How It Works
 
-1. **Detecção de Mudança:**
-   - Calcula SHA256 hash do `effective_config`
-   - Compara com o hash da última versão armazenada
+1. **Change Detection:**
+   - Calculates SHA256 hash of `effective_config`
+   - Compares with hash of last stored version
 
-2. **Criação de Nova Versão:**
-   - Se hash diferente:
-     - Incrementa `version`
-     - Salva nova entrada em `agent_configs`
-     - Registra `source` (SYNC_JOB, API_UPDATE, MANUAL_UPDATE)
-     - Se vindo da API, registra `updated_by_user_id`
+2. **Creating New Version:**
+   - If different hash:
+     - Increments `version`
+     - Saves new entry in `agent_configs`
+     - Records `source` (SYNC_JOB, API_UPDATE, MANUAL_UPDATE)
+     - If from API, records `updated_by_user_id`
 
-3. **Alerta de Divergência:**
-   - Marca `alert_config = true` no agent
-   - Atualiza `status_sync = OUT_OF_SYNC`
+3. **Divergence Alert:**
+   - Marks `alert_config = true` on agent
+   - Updates `status_sync = OUT_OF_SYNC`
 
-4. **Resolução:**
-   - Quando config é atualizado via API (`POST /config`)
-   - Backend envia para OpAMP (`/save_config/json`)
-   - Se sucesso, limpa alerta e marca `status_sync = IN_SYNC`
+4. **Resolution:**
+   - When config is updated via API (`POST /config`)
+   - Backend sends to OpAMP (`/save_config/json`)
+   - If successful, clears alert and marks `status_sync = IN_SYNC`
 
-### Exemplo de Fluxo
+### Example Flow
 
 ```
 ┌──────────────┐
@@ -1031,8 +1031,8 @@ POST /api/v1/opamp/sync
 └──────┬───────────────┘
        │
        ▼
-┌──────────────────────┐      Hash diferente?
-│ Compute config hash  │────────► SIM ─────┐
+┌──────────────────────┐      Different hash?
+│ Compute config hash  │────────► YES ─────┐
 └──────────────────────┘                   │
                                            ▼
                                   ┌─────────────────┐
@@ -1047,63 +1047,63 @@ POST /api/v1/opamp/sync
                                   └─────────────────┘
 ```
 
-### Consultar Agents com Alertas
+### Query Agents with Alerts
 
 ```bash
-# Via API (endpoint futuro ou filtro)
+# Via API (future endpoint or filter)
 curl "http://localhost:8000/api/v1/agents?alert_config=true" | jq
 
-# Via SQL direto
+# Via direct SQL
 docker exec -it opamp-postgres psql -U opamp -d opamp_db \
   -c "SELECT instance_id, host_name, alert_config FROM agents WHERE alert_config = true;"
 ```
 
 ---
 
-## 🧪 Testes e Desenvolvimento
+## 🧪 Testing and Development
 
-### Executar localmente (sem Docker)
+### Run locally (without Docker)
 
 ```bash
 cd backend
 
-# Criar virtual env
+# Create virtual env
 python3.11 -m venv venv
 source venv/bin/activate
 
-# Instalar dependências
+# Install dependencies
 pip install -r requirements.txt
 
-# Configurar .env
+# Configure .env
 cp .env.example .env
-# Editar .env com configurações locais
+# Edit .env with local settings
 
-# Rodar migrations
+# Run migrations
 alembic upgrade head
 
-# Iniciar servidor
+# Start server
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Acessar banco de dados
+### Access database
 
 ```bash
 docker exec -it opamp-postgres psql -U opamp -d opamp_db
 ```
 
-Queries úteis:
+Useful queries:
 ```sql
--- Ver todos os agents
+-- View all agents
 SELECT instance_id, host_name, healthy, status_sync, alert_config FROM agents;
 
--- Ver configs com alertas
+-- View configs with alerts
 SELECT a.instance_id, a.host_name, c.version, c.created_at
 FROM agents a
 JOIN agent_configs c ON a.instance_id = c.instance_id
 WHERE a.alert_config = true
 ORDER BY c.created_at DESC;
 
--- Histórico de health
+-- Health history
 SELECT instance_id, healthy, status, created_at
 FROM agent_health
 WHERE instance_id = '019a7534-f534-70ab-bbbc-115e2d231708'
@@ -1111,7 +1111,7 @@ ORDER BY created_at DESC
 LIMIT 10;
 ```
 
-### Logs dos containers
+### Container logs
 
 ```bash
 # Backend
@@ -1126,23 +1126,23 @@ docker logs -f opamp-postgres
 
 ---
 
-## 🔒 Segurança
+## 🔒 Security
 
 ### JWT Authentication
 
-- Tokens expiram em 30 minutos (configurável)
-- Senhas hasheadas com bcrypt
-- Secret key deve ser alterada em produção
+- Tokens expire in 30 minutes (configurable)
+- Passwords hashed with bcrypt
+- Secret key must be changed in production
 
-### Endpoints Protegidos
+### Protected Endpoints
 
-Requerem header `Authorization: Bearer <token>`:
+Require header `Authorization: Bearer <token>`:
 - `POST /api/v1/config`
 - `POST /api/v1/opamp/sync`
 - `GET /api/v1/agents/csv`
 - `GET /api/v1/auth/me`
 
-### Recomendações para Produção
+### Production Recommendations
 
 1. **Secret Key:**
    ```bash
@@ -1150,23 +1150,23 @@ Requerem header `Authorization: Bearer <token>`:
    ```
 
 2. **CORS:**
-   Edite `app/main.py` e configure origins permitidos:
+   Edit `app/main.py` and configure allowed origins:
    ```python
-   allow_origins=["https://seu-frontend.com"]
+   allow_origins=["https://your-frontend.com"]
    ```
 
 3. **HTTPS:**
-   Use reverse proxy (nginx, Traefik) com certificados SSL
+   Use reverse proxy (nginx, Traefik) with SSL certificates
 
 4. **Rate Limiting:**
-   Adicione middleware de rate limiting
+   Add rate limiting middleware
 
 5. **Database:**
-   Use senha forte e acesso restrito
+   Use strong password and restricted access
 
 ---
 
-## 📊 Monitoramento
+## 📊 Monitoring
 
 ### Health Checks
 
@@ -1181,85 +1181,85 @@ curl http://localhost:4321/
 docker exec opamp-postgres pg_isready -U opamp
 ```
 
-### Métricas
+### Metrics
 
-O background task loga estatísticas a cada sync:
-- Agents processados
-- Agents atualizados
-- Configs versionados
-- Erros
+The background task logs statistics at each sync:
+- Processed agents
+- Updated agents
+- Versioned configs
+- Errors
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Backend não conecta ao banco
+### Backend doesn't connect to database
 
 ```bash
-# Verificar se postgres está healthy
+# Check if postgres is healthy
 docker compose ps
 
-# Verificar conexão
+# Check connection
 docker exec opamp-backend env | grep DATABASE_URL
 ```
 
-### Sincronização não acontece
+### Synchronization doesn't happen
 
 ```bash
-# Verificar logs
+# Check logs
 docker logs -f opamp-backend
 
-# Verificar se OpAMP está acessível
+# Check if OpAMP is accessible
 docker exec opamp-backend curl http://opamp-server:4321/agents/full
 ```
 
-### Erro de autenticação
+### Authentication error
 
 ```bash
-# Verificar se token é válido
+# Check if token is valid
 echo $TOKEN
 
-# Tentar login novamente
-# Verificar se usuário está ativo
+# Try login again
+# Check if user is active
 ```
 
 ---
 
-## 📝 TODO / Melhorias Futuras
+## 📝 TODO / Future Improvements
 
-- [ ] Implementar roles/permissions (admin, viewer, etc.)
-- [ ] Adicionar filtros avançados na listagem de agents
-- [ ] Implementar webhooks para notificações de alertas
-- [ ] Dashboard de métricas (Grafana integration)
-- [ ] Testes automatizados (pytest)
+- [ ] Implement roles/permissions (admin, viewer, etc.)
+- [ ] Add advanced filters in agent listing
+- [ ] Implement webhooks for alert notifications
+- [ ] Metrics dashboard (Grafana integration)
+- [ ] Automated tests (pytest)
 - [ ] CI/CD pipeline
 - [ ] Rate limiting
-- [ ] Audit log de ações de usuários
+- [ ] User action audit log
 
 ---
 
-## 📄 Licença
+## 📄 License
 
-Este projeto está sob a licença especificada no arquivo LICENSE do repositório.
-
----
-
-## 👥 Contribuindo
-
-Contribuições são bem-vindas! Por favor:
-
-1. Fork o repositório
-2. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/nova-feature`)
-5. Abra um Pull Request
+This project is under the license specified in the repository LICENSE file.
 
 ---
 
-## 📧 Suporte
+## 👥 Contributing
 
-Para questões e suporte, abra uma issue no repositório.
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a branch for your feature (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -m 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
+5. Open a Pull Request
 
 ---
 
-**Desenvolvido com ❤️ usando FastAPI**
+## 📧 Support
+
+For questions and support, open an issue in the repository.
+
+---
+
+**Developed with ❤️ using FastAPI**
