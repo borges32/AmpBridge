@@ -1,53 +1,104 @@
 # AmpBridge
 
-Bridge OpenTelemetry **OpAMP → Redis → Metrics** with multi-mode export (Prometheus scrape, Remote Write, or OTLP), plus status HTML/JSON views and per-host config download.
+**Complete OpAMP Management Platform** - Full-stack solution for managing OpenTelemetry agents at scale with modern web dashboard, REST API, and real-time agent configuration.
 
-![status](https://img.shields.io/badge/status-MVP-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![python](https://img.shields.io/badge/python-3.11+-yellow) ![docker](https://img.shields.io/badge/docker-compose-informational)
-
----
-
-## Why AmpBridge?
-
-Large estates (1k–10k+ OTel agents) need a simple way to **observe agent health and effective config** via [OpAMP], persist that state, and expose **low‑cardinality metrics** ready for Prometheus/Grafana. AmpBridge does exactly that:
-
-* Ingests OpAMP envelopes and **persists** agent status/config in **Redis**
-* Exposes metrics via **one** of three delivery modes:
-
-  1. **Scrape** (`/metrics`)  2) **Remote Write**  3) **OTLP** (to an upstream Collector)
-* Presents **status HTML/JSON** pages and **per‑agent config download**
-
-> Designed for multi‑env setups (DEV / HOMO / PROD) with ~1,800 hosts per env.
+![status](https://img.shields.io/badge/status-v1.0-success) ![license](https://img.shields.io/badge/license-MIT-green) ![python](https://img.shields.io/badge/python-3.11+-yellow) ![react](https://img.shields.io/badge/react-18-blue) ![docker](https://img.shields.io/badge/docker-compose-informational)
 
 ---
 
-## Architecture
+## 🎯 What is AmpBridge?
+
+AmpBridge is a **production-ready OpAMP management platform** that provides:
+
+* 🖥️ **Modern Web Dashboard** - React-based UI for managing agents, configs, and viewing health
+* 🚀 **REST API Backend** - FastAPI backend with authentication, agent management, and config versioning
+* 📡 **OpAMP Server** - WebSocket/HTTP OpAMP protocol server for agent communication
+* 💾 **PostgreSQL Storage** - Persistent storage for agents, configs, health data, and version history
+* 🔐 **Authentication & Authorization** - JWT-based security with user management
+* 📊 **Real-time Monitoring** - Live agent status, health checks, and connection tracking
+
+> Designed for enterprise environments managing **hundreds to thousands** of OpenTelemetry agents across multiple environments (DEV / STAGING / PROD).
+
+---
+
+## 🏗️ Architecture
 
 ```
-[ OTel Agents (opamp extension) ]
-           |  (OpAMP)
-           v
-   [opamp-server]  --->  [opamp-ingestor (Python)]  --->  [Redis]
-                                       |                    ^
-                                       v                    |
-                                   [metrics-svc (FastAPI)] ---(scrape|RW|OTLP)---> Prometheus / Gateway / OTel Collector
+┌─────────────────────────────────────────────────────────────────┐
+│                         Web Browser                              │
+│                  http://localhost:3000                           │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ (HTTPS/REST)
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    Frontend (React + TS)                         │
+│  • Login/Auth  • Agent List  • Config Editor  • History         │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ (REST API)
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                   Backend (FastAPI + Python)                     │
+│  • JWT Auth  • Agent APIs  • Config Management  • Versioning    │
+└────────┬──────────────────────────────────────────┬─────────────┘
+         │ (SQL)                                     │ (OpAMP/HTTP)
+         ↓                                           ↓
+┌──────────────────┐                    ┌─────────────────────────┐
+│   PostgreSQL     │                    │    OpAMP Server (Go)    │
+│  • Agents        │                    │  • WebSocket/HTTP       │
+│  • Configs       │                    │  • Agent Connection     │
+│  • Health        │                    │  • Config Delivery      │
+│  • Users         │                    └───────────┬─────────────┘
+└──────────────────┘                                │ (OpAMP Protocol)
+                                                    ↓
+                                        ┌─────────────────────────┐
+                                        │  OpenTelemetry Agents   │
+                                        │  (1k - 10k+ hosts)      │
+                                        └─────────────────────────┘
 ```
 
-**Components**
+**Tech Stack**
 
-* **opamp-server**: reference OpAMP server (WebSocket/HTTP).
-* **opamp-ingestor**: Python client that consumes OpAMP envelopes and stores them in Redis.
-* **metrics-svc**: FastAPI service that reads Redis and exposes metrics (scrape / remote write / OTLP) and status+config endpoints.
+* **Frontend**: React 18, TypeScript, Ant Design, Monaco Editor, TanStack Query, Vite
+* **Backend**: FastAPI, SQLAlchemy, Alembic, Pydantic, JWT Auth
+* **Database**: PostgreSQL 16
+* **OpAMP Server**: Go-based reference implementation
+* **Deployment**: Docker Compose, Nginx, multi-stage builds
 
 ---
 
-## Features
+## ✨ Features
 
-* ✅ OpAMP→Redis persistence of **status** and **effective config**
-* ✅ **Prometheus‑ready metrics** with conservative labels (low cardinality)
-* ✅ **Three export modes** (select exactly one via env var)
-* ✅ **Status UI** (`/status`) & **JSON** (`/status.json`)
-* ✅ **Per‑agent config viewer & download** (`/config/{agent_id}`)
-* ✅ Docker‑Compose one‑command bring‑up
+### 🎨 Frontend Dashboard
+* ✅ **Modern UI/UX** - Professional dashboard with Ant Design components
+* ✅ **Agent Management** - List, filter, search agents by hostname, OS, status, health
+* ✅ **Real-time Stats** - Live metrics: total agents, connected, healthy, OS distribution
+* ✅ **Config Editor** - VS Code-quality YAML editor with syntax highlighting
+* ✅ **Version Control** - Complete config history with restore capability
+* ✅ **Responsive Design** - Works on desktop, tablet, mobile
+* ✅ **Secure Auth** - Login system with JWT tokens
+
+### 🔧 Backend API
+* ✅ **RESTful APIs** - Complete CRUD operations for agents and configs
+* ✅ **Authentication** - OAuth2 password flow with JWT tokens
+* ✅ **Config Versioning** - Automatic versioning on every config change
+* ✅ **Health Tracking** - Monitor agent health and connection status
+* ✅ **Pagination & Filtering** - Efficient queries for large agent fleets
+* ✅ **Download Configs** - Export agent configs as YAML files
+* ✅ **Database Migrations** - Alembic-based schema management
+
+### 📡 OpAMP Integration
+* ✅ **OpAMP Protocol** - Full implementation of Open Agent Management Protocol
+* ✅ **WebSocket Support** - Real-time bidirectional communication
+* ✅ **Config Delivery** - Push configs to agents on-demand
+* ✅ **Status Reporting** - Receive agent status updates
+* ✅ **Health Monitoring** - Track agent health metrics
+
+### 🐳 Deployment
+* ✅ **Docker Compose** - One-command deployment
+* ✅ **Multi-stage Builds** - Optimized production images
+* ✅ **Health Checks** - Built-in container health monitoring
+* ✅ **Volume Persistence** - Data survives container restarts
+* ✅ **Production Ready** - Nginx, SSL-ready, secure defaults
 * 🔒 TLS/mtls ready behind your reverse proxy (recommended)
 
 ---

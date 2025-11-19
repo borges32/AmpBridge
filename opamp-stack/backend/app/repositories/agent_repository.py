@@ -114,6 +114,40 @@ class AgentRepository:
         )
         return list(result.scalars().all())
     
+    async def get_statistics(self) -> dict:
+        """Get agent statistics."""
+        # Total agents
+        total = await self.db.execute(select(func.count(Agent.id)))
+        total_agents = total.scalar_one()
+        
+        # Connected agents
+        connected = await self.db.execute(
+            select(func.count(Agent.id)).where(Agent.is_connected == True)
+        )
+        connected_agents = connected.scalar_one()
+        
+        # Healthy agents
+        healthy = await self.db.execute(
+            select(func.count(Agent.id)).where(Agent.healthy == True)
+        )
+        healthy_agents = healthy.scalar_one()
+        
+        # OS distribution
+        os_dist = await self.db.execute(
+            select(Agent.os_type, func.count(Agent.id))
+            .group_by(Agent.os_type)
+        )
+        os_distribution = {row[0] or "unknown": row[1] for row in os_dist.all()}
+        
+        return {
+            "total_agents": total_agents,
+            "connected_agents": connected_agents,
+            "disconnected_agents": total_agents - connected_agents,
+            "healthy_agents": healthy_agents,
+            "unhealthy_agents": total_agents - healthy_agents,
+            "os_distribution": os_distribution
+        }
+    
     async def delete(self, agent: Agent) -> None:
         """Delete an agent."""
         await self.db.delete(agent)

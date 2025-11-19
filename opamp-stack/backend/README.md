@@ -222,7 +222,45 @@ Histórico de saúde dos agents.
 - `ix_agent_health_instance_id`
 - `idx_health_instance_created` (instance_id, created_at)
 
-#### 4. **agent_configs**
+**⚠️ Limitação de Registros:**
+- Sistema mantém automaticamente apenas os **últimos 10 registros** por agent
+- Limpeza executada a cada sincronização com OpAMP
+- Garante performance e controle do crescimento do banco
+
+#### 4. **agent_pipeline_health** ⭐ NOVO
+Estado atual dos componentes e pipelines de cada agent (estrutura hierárquica).
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | INTEGER | Chave primária |
+| instance_id | VARCHAR(255) | FK para agents |
+| component_type | VARCHAR(50) | Tipo: extensions, pipeline, extension, exporter, processor, receiver |
+| component_name | VARCHAR(255) | Nome do componente |
+| parent_pipeline | VARCHAR(255) | Pipeline pai (para sub-componentes) |
+| healthy | BOOLEAN | Status de saúde do componente |
+| status | VARCHAR(100) | StatusOK, StatusFailed, etc |
+| status_time_unix_nano | BIGINT | Timestamp Unix nano |
+| last_error | TEXT | Último erro do componente |
+| created_at | TIMESTAMP | Data de criação |
+
+**Índices:**
+- `ix_agent_pipeline_health_instance_id`
+- `idx_pipeline_health_instance_created` (instance_id, created_at)
+- `idx_pipeline_health_component` (component_type, component_name)
+- `idx_pipeline_health_parent` (parent_pipeline)
+
+**⚠️ Comportamento:**
+- **Não mantém histórico** - cada sincronização substitui completamente os dados
+- A cada sync, todos os registros antigos do agent são deletados
+- Grava o estado atual de TODOS os componentes do agent em estrutura hierárquica
+- **Componentes coletados:**
+  - `extensions` (grupo geral)
+  - `extension:xxx` (extensões individuais, ex: opamp, zpages)
+  - `pipeline:xxx` (pipelines, ex: metrics/base)
+  - `exporter:xxx`, `processor:xxx`, `receiver:xxx` (sub-componentes dos pipelines)
+- Ideal para visualização do estado atual, não para análise histórica
+
+#### 5. **agent_configs**
 Versionamento de configurações dos agents.
 
 | Campo | Tipo | Descrição |
@@ -263,24 +301,25 @@ backend/
 │   │
 │   ├── models/                    # SQLAlchemy models
 │   │   ├── __init__.py
-│   │   └── models.py              # User, Agent, AgentHealth, AgentConfig
+│   │   └── models.py              # User, Agent, AgentHealth, AgentPipelineHealth, AgentConfig
 │   │
 │   ├── repositories/              # Data access layer
 │   │   ├── __init__.py
 │   │   ├── user_repository.py
 │   │   ├── agent_repository.py
 │   │   ├── agent_health_repository.py
+│   │   ├── agent_pipeline_health_repository.py  # ⭐ NOVO
 │   │   └── agent_config_repository.py
 │   │
 │   ├── services/                  # Business logic layer
 │   │   ├── __init__.py
 │   │   ├── auth_service.py        # Autenticação
-│   │   └── opamp_service.py       # Integração OpAMP
+│   │   └── opamp_service.py       # Integração OpAMP + Pipeline Health
 │   │
 │   └── routers/                   # API endpoints
 │       ├── __init__.py
 │       ├── auth.py                # /auth/*
-│       ├── agents.py              # /agents/*
+│       ├── agents.py              # /agents/* + /agents/{id}/pipelines/health ⭐
 │       ├── config.py              # /config/*
 │       └── opamp.py               # /opamp/sync
 │
@@ -288,7 +327,8 @@ backend/
 │   ├── env.py
 │   ├── script.py.mako
 │   └── versions/
-│       └── 001_initial.py         # Initial migration
+│       ├── 001_initial.py         # Initial migration
+│       └── 002_add_pipeline_health.py  # ⭐ NOVO - Pipeline health table
 │
 ├── alembic.ini                    # Alembic configuration
 ├── requirements.txt               # Python dependencies
@@ -386,6 +426,7 @@ docker exec -it opamp-postgres psql -U opamp -d opamp_db
 \d users
 \d agents
 \d agent_health
+\d agent_pipeline_health
 \d agent_configs
 ```
 
@@ -409,6 +450,27 @@ WHERE instance_id = 'agent-123'
 ORDER BY created_at DESC 
 LIMIT 10;
 ```
+
+**Verificar componentes e pipelines de um agent:** ⭐ NOVO
+```sql
+-- Todos os componentes
+SELECT component_type, component_name, parent_pipeline, healthy, status, created_at 
+FROM agent_pipeline_health 
+WHERE instance_id = 'agent-123'
+ORDER BY component_type, component_name;
+
+-- Apenas pipelines principais
+SELECT component_name, healthy, status, created_at 
+FROM agent_pipeline_health 
+WHERE instance_id = 'agent-123' AND component_type = 'pipeline';
+
+-- Componentes de um pipeline específico
+SELECT component_type, component_name, healthy, status 
+FROM agent_pipeline_health 
+WHERE instance_id = 'agent-123' AND parent_pipeline = 'metrics/base';
+```
+
+**Nota:** Apenas o estado atual dos componentes é mantido (sem histórico).
 
 **Listar versionamento de configurações:**
 ```sql
@@ -643,6 +705,41 @@ Histórico de saúde de um agent.
     "created_at": "2025-11-17T22:00:00Z"
   }
 ]
+```
+
+**⚠️ Nota:** O sistema mantém automaticamente apenas os últimos 10 registros por agent.
+
+#### `GET /api/v1/agents/{instance_id}/pipelines/health` ⭐ NOVO
+Estado atual da saúde dos pipelines de um agent.
+
+**Query Parameters:**
+- `pipeline_name` (optional): Filtrar por pipeline específico
+- `limit` (default: 100, max: 1000): Número de registros
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 1,
+    "instance_id": "019a7534-f534-70ab-bbbc-115e2d231708",
+    "pipeline_name": "metrics/base",
+    "healthy": true,
+    "status": "StatusOK",
+    "status_time_unix_nano": 1763415651056355200,
+    "last_error": null,
+    "created_at": "2025-11-18T13:32:00Z"
+  }
+]
+```
+
+**⚠️ Nota:** 
+- Não mantém histórico - retorna apenas o estado atual dos pipelines
+- Dados são substituídos a cada sincronização (60s)
+- Ideal para monitoramento em tempo real
+
+**Exemplo - Filtrar por pipeline:**
+```bash
+curl "http://localhost:8000/api/v1/agents/{instance_id}/pipelines/health?pipeline_name=metrics/base"
 ```
 
 #### `GET /api/v1/agents/{instance_id}/configs`

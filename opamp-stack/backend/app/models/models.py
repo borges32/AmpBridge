@@ -100,6 +100,38 @@ class AgentHealth(Base):
         return f"<AgentHealth(id={self.id}, instance_id='{self.instance_id}', healthy={self.healthy}, status='{self.status}')>"
 
 
+class AgentPipelineHealth(Base):
+    """
+    Agent pipeline health model for tracking individual pipeline/component health status.
+    Stores health information for pipelines, extensions, and their components.
+    """
+    __tablename__ = "agent_pipeline_health"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    instance_id: Mapped[str] = mapped_column(String(255), ForeignKey("agents.instance_id", ondelete="CASCADE"), nullable=False, index=True)
+    component_type: Mapped[str] = mapped_column(String(50), nullable=False)  # extensions, pipeline, exporter, processor, receiver
+    component_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Nome completo do componente
+    parent_pipeline: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Pipeline pai (para sub-componentes)
+    healthy: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    status: Mapped[str] = mapped_column(String(100), nullable=False)  # StatusOK, StatusFailed, etc.
+    status_time_unix_nano: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    agent: Mapped["Agent"] = relationship("Agent", foreign_keys=[instance_id])
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_pipeline_health_instance_created', 'instance_id', 'created_at'),
+        Index('idx_pipeline_health_component', 'component_type', 'component_name'),
+        Index('idx_pipeline_health_parent', 'parent_pipeline'),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AgentPipelineHealth(id={self.id}, instance_id='{self.instance_id}', component='{self.component_type}:{self.component_name}', healthy={self.healthy})>"
+
+
 class AgentConfig(Base):
     """
     Agent configuration model for versioning effective configurations.

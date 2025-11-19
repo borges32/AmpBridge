@@ -1,61 +1,70 @@
-# 🎉 Sistema Backend OpAMP - Implementação Completa
+# 🎉 OpAMP Backend System - Complete Implementation
 
 ---
 
-## ✅ O QUE FOI IMPLEMENTADO
+## ✅ WHAT HAS BEEN IMPLEMENTED
 
-### 1. 📊 **Banco de Dados** (PostgreSQL 15)
+### 1. 📊 **Database** (PostgreSQL 15)
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ 4 TABELAS IMPLEMENTADAS                             │
+│ 5 TABLES IMPLEMENTED                                │
 ├─────────────────────────────────────────────────────┤
 │                                                      │
 │  ✅ users                                            │
-│     → Autenticação e gestão de usuários             │
+│     → User authentication and management            │
 │     → Password hash (bcrypt)                        │
-│     → 6 campos + timestamps                         │
+│     → 6 fields + timestamps                         │
 │                                                      │
 │  ✅ agents                                           │
-│     → Dados dos agents OpAMP                        │
-│     → Status de conexão e saúde                     │
-│     → Alertas de configuração                       │
-│     → 12 campos + timestamps                        │
+│     → OpAMP agent data                              │
+│     → Connection and health status                  │
+│     → Configuration alerts                          │
+│     → 12 fields + timestamps                        │
 │                                                      │
 │  ✅ agent_health                                     │
-│     → Histórico de saúde                            │
+│     → Health history                                │
 │     → Status time (nanoseconds)                     │
-│     → 7 campos + timestamp                          │
+│     → Limitation: last 10 records per agent ⭐      │
+│     → 7 fields + timestamp                          │
+│                                                      │
+│  ✅ agent_pipeline_health ⭐ NEW                     │
+│     → Current pipeline state (no history)           │
+│     → Complete replacement on each sync             │
+│     → Real-time monitoring                          │
+│     → 7 fields + timestamp                          │
 │                                                      │
 │  ✅ agent_configs                                    │
-│     → Versionamento de configurações                │
-│     → Hash SHA256 para detecção de mudanças         │
-│     → Rastreabilidade de alterações                 │
-│     → 8 campos + timestamps                         │
+│     → Configuration versioning                      │
+│     → SHA256 hash for change detection              │
+│     → Change traceability                           │
+│     → 8 fields + timestamps                         │
 │                                                      │
 └─────────────────────────────────────────────────────┘
 ```
 
-**Migrations:** ✅ Alembic configurado e migration inicial criada
+**Migrations:** ✅ Alembic configured with 2 migrations:
+- `001_initial.py` - Initial structure
+- `002_add_pipeline_health.py` ⭐ NEW - Pipeline health table
 
 ---
 
-### 2. 🏗️ **Arquitetura em Camadas**
+### 2. 🏗️ **Layered Architecture**
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │                                                       │
 │  📡 ROUTERS (API Layer)                              │
-│  ├── auth.py         → Autenticação                  │
-│  ├── agents.py       → Gestão de agents              │
-│  ├── config.py       → Configurações                 │
-│  └── opamp.py        → Sincronização                 │
+│  ├── auth.py         → Authentication                │
+│  ├── agents.py       → Agent management              │
+│  ├── config.py       → Configurations                │
+│  └── opamp.py        → Synchronization               │
 │                                                       │
 ├───────────────────────────────────────────────────────┤
 │                                                       │
 │  🧠 SERVICES (Business Logic)                        │
 │  ├── auth_service.py    → Login, JWT                 │
-│  └── opamp_service.py   → Sync, versionamento        │
+│  └── opamp_service.py   → Sync, versioning           │
 │                                                       │
 ├───────────────────────────────────────────────────────┤
 │                                                       │
@@ -63,6 +72,8 @@
 │  ├── user_repository.py           → CRUD users       │
 │  ├── agent_repository.py          → CRUD agents      │
 │  ├── agent_health_repository.py   → CRUD health      │
+│  ├── agent_pipeline_health_repository.py ⭐ NEW      │
+│  │   → CRUD pipeline health + automatic cleanup      │
 │  └── agent_config_repository.py   → CRUD configs     │
 │                                                       │
 ├───────────────────────────────────────────────────────┤
@@ -75,15 +86,15 @@
 
 ---
 
-### 3. 🔐 **Autenticação JWT**
+### 3. 🔐 **JWT Authentication**
 
 ```
-✅ Registro de usuários
-✅ Login com geração de token
-✅ Validação de token via dependency
+✅ User registration
+✅ Login with token generation
+✅ Token validation via dependency
 ✅ Password hashing (bcrypt)
-✅ Token expiration (30 min configurável)
-✅ Proteção de endpoints sensíveis
+✅ Token expiration (30 min configurable)
+✅ Sensitive endpoint protection
 
 Endpoints:
   • POST /api/v1/auth/register
@@ -93,147 +104,153 @@ Endpoints:
 
 ---
 
-### 4. 📡 **API REST Completa** (15+ endpoints)
+### 4. 📡 **Complete REST API** (17+ endpoints)
 
-#### **Autenticação**
+#### **Authentication**
 ```
-✅ POST   /api/v1/auth/register       → Registrar usuário
-✅ POST   /api/v1/auth/login          → Login (retorna JWT)
-✅ GET    /api/v1/auth/me             → Info usuário atual (auth)
+✅ POST   /api/v1/auth/register       → Register user
+✅ POST   /api/v1/auth/login          → Login (returns JWT)
+✅ GET    /api/v1/auth/me             → Current user info (auth)
 ```
 
 #### **Agents**
 ```
-✅ GET    /api/v1/agents               → Listar agents (paginado)
-✅ GET    /api/v1/agents/{id}          → Detalhes de um agent
-✅ GET    /api/v1/agents/{id}/health   → Histórico de saúde
-✅ GET    /api/v1/agents/{id}/configs  → Histórico de configs
-✅ GET    /api/v1/agents/{id}/config   → Download YAML config
-✅ GET    /api/v1/agents/csv           → Export CSV (auth)
+✅ GET    /api/v1/agents                      → List agents (paginated)
+✅ GET    /api/v1/agents/stats                → Agent statistics
+✅ GET    /api/v1/agents/{id}                 → Agent details
+✅ GET    /api/v1/agents/{id}/health          → General health history
+✅ GET    /api/v1/agents/{id}/pipelines/health ⭐ NEW → Health by pipeline
+✅ GET    /api/v1/agents/{id}/configs         → Config history
+✅ GET    /api/v1/agents/{id}/config          → Download YAML config
+✅ GET    /api/v1/agents/csv                  → CSV export (auth)
 ```
 
-#### **Configuração**
+#### **Configuration**
 ```
-✅ POST   /api/v1/config?instance_id=X → Atualizar config (auth)
-```
-
-#### **Sincronização**
-```
-✅ POST   /api/v1/opamp/sync           → Sync manual (auth)
+✅ POST   /api/v1/config?instance_id=X → Update config (auth)
 ```
 
-**Documentação:** ✅ Swagger UI em `/docs`
+#### **Synchronization**
+```
+✅ POST   /api/v1/opamp/sync           → Manual sync (auth)
+```
+
+**Documentation:** ✅ Swagger UI at `/docs`
 
 ---
 
-### 5. 🔄 **Sincronização Automática**
+### 5. 🔄 **Automatic Synchronization**
 
 ```
 ┌─────────────────────────────────────────────────┐
 │ BACKGROUND TASK (60s)                           │
 ├─────────────────────────────────────────────────┤
 │                                                  │
-│  ✅ Busca agents de /agents/full                │
-│  ✅ Atualiza dados em agents table              │
-│  ✅ Cria registros em agent_health              │
-│  ✅ Detecta mudanças via SHA256 hash            │
-│  ✅ Versiona configs automaticamente            │
-│  ✅ Marca alertas de divergência                │
-│  ✅ Identifica agents desconectados             │
-│  ✅ Logs de estatísticas                        │
+│  ✅ Fetch agents from /agents/full              │
+│  ✅ Update data in agents table                 │
+│  ✅ Create records in agent_health              │
+│  ✅ Replace pipeline health (current state) ⭐  │
+│  ✅ Detect changes via SHA256 hash              │
+│  ✅ Version configs automatically               │
+│  ✅ Mark disconnected agents                    │
+│  ✅ Automatic cleanup (last 10 records) ⭐      │
+│  ✅ Version configs automatically               │
+│  ✅ Mark divergence alerts                      │
+│  ✅ Identify disconnected agents                │
+│  ✅ Statistics logging                          │
 │                                                  │
 └─────────────────────────────────────────────────┘
 
-Configurável via: OPAMP_SYNC_INTERVAL_SECONDS
+Configurable via: OPAMP_SYNC_INTERVAL_SECONDS
 ```
 
 ---
 
-### 6. 📦 **Versionamento de Configurações**
+### 6. 📦 **Configuration Versioning**
 
 ```
-✅ Detecção automática de mudanças (SHA256)
-✅ Versão incremental por agent
-✅ Rastreabilidade (quem alterou, quando, de onde)
-✅ Histórico ilimitado
+✅ Automatic change detection (SHA256)
+✅ Incremental version per agent
+✅ Traceability (who changed, when, from where)
+✅ Unlimited history
 ✅ Source tracking (SYNC_JOB, API_UPDATE, MANUAL_UPDATE)
-✅ Integração com OpAMP /save_config/json
+✅ Integration with OpAMP /save_config/json
 ```
 
-**Fluxo:**
-1. Sync detecta config diferente
-2. Cria nova versão automaticamente
-3. Marca `alert_config = true`
+**Flow:**
+1. Sync detects different config
+2. Creates new version automatically
+3. Marks `alert_config = true`
 4. `status_sync = OUT_OF_SYNC`
-5. Usuário pode atualizar via API
-6. Sistema envia para OpAMP
-7. Limpa alerta e marca `IN_SYNC`
+5. User can update via API
+6. System sends to OpAMP
+7. Clears alert and marks `IN_SYNC`
 
 ---
 
-### 7. 🔔 **Sistema de Alertas**
+### 7. 🔔 **Alert System**
 
 ```
 ┌───────────────────────────────────────┐
-│ ALERTAS DE DIVERGÊNCIA                │
+│ DIVERGENCE ALERTS                     │
 ├───────────────────────────────────────┤
 │                                        │
-│  ✅ Detecção automática de mudanças   │
-│  ✅ Flag alert_config no agent        │
-│  ✅ Status IN_SYNC / OUT_OF_SYNC      │
-│  ✅ Timestamp de última alteração     │
-│  ✅ Consulta fácil via API            │
+│  ✅ Automatic change detection        │
+│  ✅ alert_config flag on agent        │
+│  ✅ IN_SYNC / OUT_OF_SYNC status      │
+│  ✅ Last change timestamp             │
+│  ✅ Easy query via API                │
 │                                        │
 └───────────────────────────────────────┘
 ```
 
 ---
 
-### 8. 🐳 **Containerização Completa**
+### 8. 🐳 **Complete Containerization**
 
 ```yaml
-✅ Dockerfile otimizado (multi-stage)
-✅ docker-compose.yml completo
-✅ 4 serviços orquestrados:
+✅ Optimized Dockerfile (multi-stage)
+✅ Complete docker-compose.yml
+✅ 4 orchestrated services:
    • postgres    (database)
-   • opamp-server (existente)
-   • backend     (NOVO!)
+   • opamp-server (existing)
+   • backend     (NEW!)
    • haproxy     (load balancer)
 
-✅ Health checks configurados
-✅ Networks isoladas
-✅ Volumes persistentes
+✅ Configured health checks
+✅ Isolated networks
+✅ Persistent volumes
 ✅ Restart policies
 ✅ Environment variables
 ```
 
 ---
 
-### 9. 📚 **Documentação Completa**
+### 9. 📚 **Complete Documentation**
 
 ```
-✅ README.md          → Documentação completa da API
-✅ ARCHITECTURE.md    → Arquitetura e design do sistema
-✅ QUICKSTART.md      → Guia rápido de início
-✅ SUMMARY.md         → Sumário executivo
-✅ FLOWS.md           → Diagramas de sequência
-✅ PRODUCTION.md      → Guia de deploy em produção
-✅ Swagger/OpenAPI    → Documentação interativa
+✅ README.md          → Complete API documentation
+✅ ARCHITECTURE.md    → System architecture and design
+✅ QUICKSTART.md      → Quick start guide
+✅ SUMMARY.md         → Executive summary
+✅ FLOWS.md           → Sequence diagrams
+✅ PRODUCTION.md      → Production deployment guide
+✅ Swagger/OpenAPI    → Interactive documentation
 ```
 
 ---
 
-### 10. 🧪 **Ferramentas de Teste**
+### 10. 🧪 **Testing Tools**
 
 ```bash
-✅ test_api.sh       → Script completo de testes
-✅ .env.example      → Template de configuração
-✅ Postman-ready     → API pronta para importar
+✅ test_api.sh       → Complete test script
+✅ .env.example      → Configuration template
+✅ Postman-ready     → API ready to import
 ```
 
 ---
 
-## 📁 ESTRUTURA DE ARQUIVOS CRIADA
+## 📁 FILE STRUCTURE CREATED
 
 ```
 backend/
@@ -294,49 +311,49 @@ backend/
         └── opamp.py
 ```
 
-**Total:** ~40 arquivos criados!
+**Total:** ~40 files created!
 
 ---
 
-## 🎯 FUNCIONALIDADES ENTREGUES
+## 🎯 DELIVERED FEATURES
 
-### ✅ Requisitos Principais
+### ✅ Main Requirements
 
-- [x] Sincronização periódica com OpAMP
-- [x] Persistência de dados (agents, health, configs)
-- [x] Versionamento de configurações
-- [x] Sistema de alertas de divergência
-- [x] API REST completa
-- [x] Autenticação JWT
-- [x] Envio de configs para agents
-- [x] Rastreabilidade de alterações
-- [x] Export de dados (CSV, YAML)
-- [x] Dockerização completa
+- [x] Periodic synchronization with OpAMP
+- [x] Data persistence (agents, health, configs)
+- [x] Configuration versioning
+- [x] Divergence alert system
+- [x] Complete REST API
+- [x] JWT authentication
+- [x] Config sending to agents
+- [x] Change traceability
+- [x] Data export (CSV, YAML)
+- [x] Complete Dockerization
 
-### ✅ Features Adicionais
+### ✅ Additional Features
 
-- [x] Paginação em listagens
+- [x] Pagination in listings
 - [x] Health checks
 - [x] Swagger documentation
 - [x] Background tasks
-- [x] Async/await em toda stack
+- [x] Async/await throughout the stack
 - [x] Connection pooling
-- [x] Índices de database otimizados
-- [x] Logs estruturados
-- [x] Detecção de agents desconectados
+- [x] Optimized database indexes
+- [x] Structured logging
+- [x] Disconnected agent detection
 
 ---
 
-## 🚀 COMO USAR
+## 🚀 HOW TO USE
 
-### 1. Subir o sistema
+### 1. Start the system
 
 ```bash
 cd opamp-stack
 docker compose up -d
 ```
 
-### 2. Criar usuário
+### 2. Create user
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/register \
@@ -349,7 +366,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
   }'
 ```
 
-### 3. Fazer login
+### 3. Login
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/login \
@@ -360,7 +377,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
   }'
 ```
 
-### 4. Acessar documentação
+### 4. Access documentation
 
 ```
 http://localhost:8000/docs
@@ -368,22 +385,22 @@ http://localhost:8000/docs
 
 ---
 
-## 📊 MÉTRICAS DO PROJETO
+## 📊 PROJECT METRICS
 
 ```
 ┌─────────────────────────────────────────┐
-│ ESTATÍSTICAS                            │
+│ STATISTICS                              │
 ├─────────────────────────────────────────┤
 │                                          │
-│  📝 Linhas de código: ~3000+            │
-│  📄 Arquivos criados: ~40               │
-│  🗄️ Tabelas de DB: 4                    │
-│  📡 Endpoints REST: 15+                 │
-│  🔐 Autenticação: JWT                   │
+│  📝 Lines of code: ~3000+               │
+│  📄 Files created: ~40                  │
+│  🗄️ DB tables: 4                        │
+│  📡 REST endpoints: 15+                 │
+│  🔐 Authentication: JWT                 │
 │  🐳 Containers: 4                       │
-│  📚 Documentos: 7                       │
+│  📚 Documents: 7                        │
 │  ⚡ Performance: Async/Await            │
-│  🔄 Sync interval: 60s (configurável)   │
+│  🔄 Sync interval: 60s (configurable)   │
 │  📦 Dependencies: 15+                   │
 │                                          │
 └─────────────────────────────────────────┘
@@ -391,11 +408,11 @@ http://localhost:8000/docs
 
 ---
 
-## 🎓 STACK TECNOLÓGICA
+## 🎓 TECH STACK
 
 ```
 ┌─────────────────────────────────────────┐
-│ TECNOLOGIAS UTILIZADAS                  │
+│ TECHNOLOGIES USED                       │
 ├─────────────────────────────────────────┤
 │                                          │
 │  🐍 Python 3.11+                        │
@@ -416,68 +433,68 @@ http://localhost:8000/docs
 
 ---
 
-## 🏆 QUALIDADE DO CÓDIGO
+## 🏆 CODE QUALITY
 
 ```
-✅ Type hints completos
-✅ Docstrings em funções principais
-✅ Separação de responsabilidades
-✅ Padrão Repository
+✅ Complete type hints
+✅ Docstrings in main functions
+✅ Separation of concerns
+✅ Repository pattern
 ✅ Dependency Injection
-✅ Async/Await otimizado
-✅ Error handling adequado
-✅ Logging estruturado
-✅ Code organization (camadas)
-✅ Best practices FastAPI
+✅ Optimized Async/Await
+✅ Proper error handling
+✅ Structured logging
+✅ Code organization (layers)
+✅ FastAPI best practices
 ```
 
 ---
 
-## 🎉 PRONTO PARA PRODUÇÃO!
+## 🎉 PRODUCTION READY!
 
 ```
 ╔═══════════════════════════════════════════════╗
 ║                                               ║
-║  ✨ SISTEMA 100% FUNCIONAL ✨                ║
+║  ✨ 100% FUNCTIONAL SYSTEM ✨                ║
 ║                                               ║
-║  • Backend completo implementado              ║
-║  • Sincronização automática funcionando       ║
-║  • Versionamento de configs ativo             ║
-║  • API REST documentada e testada             ║
-║  • Autenticação JWT segura                    ║
-║  • Dockerizado e pronto para deploy           ║
-║  • Documentação completa                      ║
-║  • Testes automatizados                       ║
+║  • Complete backend implemented               ║
+║  • Automatic synchronization working          ║
+║  • Config versioning active                   ║
+║  • REST API documented and tested             ║
+║  • Secure JWT authentication                  ║
+║  • Dockerized and ready to deploy             ║
+║  • Complete documentation                     ║
+║  • Automated testing                          ║
 ║                                               ║
-║  🚀 PRONTO PARA USO!                          ║
+║  🚀 READY TO USE!                             ║
 ║                                               ║
 ╚═══════════════════════════════════════════════╝
 ```
 
 ---
 
-## 📞 LINKS RÁPIDOS
+## 📞 QUICK LINKS
 
 - **API Docs:** http://localhost:8000/docs
 - **Health Check:** http://localhost:8000/health
 - **OpAMP Server:** http://localhost:4321
 - **README:** [backend/README.md](README.md)
-- **Arquitetura:** [backend/ARCHITECTURE.md](ARCHITECTURE.md)
+- **Architecture:** [backend/ARCHITECTURE.md](ARCHITECTURE.md)
 - **Quick Start:** [backend/QUICKSTART.md](QUICKSTART.md)
 
 ---
 
-## 🙏 PRÓXIMOS PASSOS SUGERIDOS
+## 🙏 SUGGESTED NEXT STEPS
 
-1. ✅ **Testar:** Rodar `./test_api.sh`
-2. ✅ **Explorar:** Acessar `/docs` e testar endpoints
-3. 🔜 **Produção:** Seguir [PRODUCTION.md](PRODUCTION.md)
-4. 🔜 **Frontend:** Criar interface web (futuro)
-5. 🔜 **Testes:** Implementar pytest
-6. 🔜 **Monitoring:** Adicionar Prometheus/Grafana
+1. ✅ **Test:** Run `./test_api.sh`
+2. ✅ **Explore:** Access `/docs` and test endpoints
+3. 🔜 **Production:** Follow [PRODUCTION.md](PRODUCTION.md)
+4. 🔜 **Frontend:** Create web interface (future)
+5. 🔜 **Tests:** Implement pytest
+6. 🔜 **Monitoring:** Add Prometheus/Grafana
 
 ---
 
-**Desenvolvido com ❤️ usando FastAPI + PostgreSQL + SQLAlchemy + OpAMP**
+**Developed with ❤️ using FastAPI + PostgreSQL + SQLAlchemy + OpAMP**
 
-**Status:** ✅ **COMPLETO E FUNCIONAL**
+**Status:** ✅ **COMPLETE AND FUNCTIONAL**

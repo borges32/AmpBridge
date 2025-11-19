@@ -49,7 +49,7 @@ class AuthService:
         if not user:
             raise ValueError("Incorrect login or password")
         
-        # Create access token
-        access_token = create_access_token(data={"sub": user.id, "login": user.login})
+        # Create access token - sub must be a string
+        access_token = create_access_token(data={"sub": str(user.id), "login": user.login})
         
         return Token(access_token=access_token, token_type="bearer")

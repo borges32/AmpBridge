@@ -247,8 +247,10 @@ Sincroniza um agent individual.
 1. Extrai atributos (host_name, os_*, etc)
 2. Upsert em `agents`
 3. Cria registro em `agent_health`
-4. Calcula hash de config
-5. Se hash mudou:
+4. Extrai e salva pipeline health ⭐ NOVO
+5. Executa cleanup (mantém últimos 10 registros) ⭐
+6. Calcula hash de config
+7. Se hash mudou:
    - Cria nova versão em `agent_configs`
    - Marca `alert_config = true`
    - `status_sync = OUT_OF_SYNC`

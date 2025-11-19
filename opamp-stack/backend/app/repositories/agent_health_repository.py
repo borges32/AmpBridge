@@ -4,7 +4,7 @@ Repository layer for AgentHealth database operations.
 from typing import Optional, List
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, delete
 
 from app.models.models import AgentHealth
 from app.schemas import AgentHealthCreate
@@ -48,3 +48,38 @@ class AgentHealthRepository:
             .limit(limit)
         )
         return list(result.scalars().all())
+    
+    async def cleanup_old_records(self, instance_id: str, keep_last: int = 10) -> int:
+        """
+        Delete old health records, keeping only the last N records for an agent.
+        
+        Args:
+            instance_id: Agent instance ID
+            keep_last: Number of records to keep (default: 10)
+            
+        Returns:
+            Number of records deleted
+        """
+        # Get IDs of records to keep
+        result = await self.db.execute(
+            select(AgentHealth.id)
+            .where(AgentHealth.instance_id == instance_id)
+            .order_by(desc(AgentHealth.created_at))
+            .limit(keep_last)
+        )
+        ids_to_keep = [row[0] for row in result.all()]
+        
+        if not ids_to_keep:
+            return 0
+        
+        # Delete records not in the keep list
+        delete_result = await self.db.execute(
+            delete(AgentHealth)
+            .where(
+                AgentHealth.instance_id == instance_id,
+                AgentHealth.id.not_in(ids_to_keep)
+            )
+        )
+        
+        await self.db.commit()
+        return delete_result.rowcount

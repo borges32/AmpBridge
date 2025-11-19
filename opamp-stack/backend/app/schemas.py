@@ -110,6 +110,31 @@ class AgentHealthResponse(AgentHealthBase):
         from_attributes = True
 
 
+# ===== Agent Pipeline Health Schemas =====
+class AgentPipelineHealthBase(BaseModel):
+    instance_id: str
+    component_type: str
+    component_name: str
+    parent_pipeline: Optional[str] = None
+    healthy: bool
+    status: str
+
+
+class AgentPipelineHealthCreate(AgentPipelineHealthBase):
+    status_time_unix_nano: Optional[int] = None
+    last_error: Optional[str] = None
+
+
+class AgentPipelineHealthResponse(AgentPipelineHealthBase):
+    id: int
+    status_time_unix_nano: Optional[int] = None
+    last_error: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # ===== Agent Config Schemas =====
 class AgentConfigBase(BaseModel):
     instance_id: str
@@ -187,3 +212,13 @@ class ConfigUpdateResponse(BaseModel):
     instance_id: str
     version: int
     status_ready: bool = False
+
+
+# ===== Agent Statistics Schema =====
+class AgentStatsResponse(BaseModel):
+    total_agents: int
+    connected_agents: int
+    disconnected_agents: int
+    healthy_agents: int
+    unhealthy_agents: int
+    os_distribution: dict[str, int] = {}
