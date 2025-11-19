@@ -351,6 +351,10 @@ class OpAMPService:
             # Fetch agents from OpAMP
             opamp_agents = await self.fetch_agents_from_opamp()
             
+            # Handle None or empty response from OpAMP server
+            if opamp_agents is None:
+                opamp_agents = []
+            
             # Track instance IDs from OpAMP
             opamp_instance_ids = []
             
@@ -371,8 +375,10 @@ class OpAMPService:
                     errors.append(str(e))
             
             # Mark disconnected agents
-            if opamp_instance_ids:
-                await self.agent_repo.mark_disconnected(opamp_instance_ids)
+            # Always call this, even with empty list, to mark all agents as disconnected when no agents are returned
+            disconnected_count = await self.agent_repo.mark_disconnected(opamp_instance_ids)
+            if disconnected_count > 0:
+                logger.info(f"Marked {disconnected_count} agent(s) as disconnected")
             
             return SyncResponse(
                 success=True,

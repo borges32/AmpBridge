@@ -32,21 +32,41 @@ router = APIRouter(prefix="/agents", tags=["Agents"])
 async def list_agents(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=500, description="Items per page"),
+    os_type: Optional[str] = Query(None, description="Filter by OS type"),
+    connected: Optional[bool] = Query(None, description="Filter by connection status"),
+    healthy: Optional[bool] = Query(None, description="Filter by health status"),
+    search: Optional[str] = Query(None, description="Search by hostname, instance ID, or service name"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    List all agents with pagination.
+    List all agents with pagination and filters.
     Requires authentication.
     
     - **page**: Page number (starts at 1)
     - **page_size**: Number of items per page (max 500)
+    - **os_type**: Filter by operating system type
+    - **connected**: Filter by connection status (true/false)
+    - **healthy**: Filter by health status (true/false)
+    - **search**: Search in hostname, instance ID, or service name
     """
     agent_repo = AgentRepository(db)
     
     skip = (page - 1) * page_size
-    agents = await agent_repo.get_all(skip=skip, limit=page_size)
-    total = await agent_repo.count()
+    agents = await agent_repo.get_all_filtered(
+        skip=skip, 
+        limit=page_size,
+        os_type=os_type,
+        connected=connected,
+        healthy=healthy,
+        search=search
+    )
+    total = await agent_repo.count_filtered(
+        os_type=os_type,
+        connected=connected,
+        healthy=healthy,
+        search=search
+    )
     
     return AgentListResponse(
         total=total,

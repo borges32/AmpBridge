@@ -54,6 +54,78 @@ class AgentRepository:
         )
         return list(result.scalars().all())
     
+    async def get_all_filtered(
+        self, 
+        skip: int = 0, 
+        limit: int = 100,
+        os_type: Optional[str] = None,
+        connected: Optional[bool] = None,
+        healthy: Optional[bool] = None,
+        search: Optional[str] = None
+    ) -> List[Agent]:
+        """Get all agents with pagination and filters."""
+        query = select(Agent)
+        
+        # Apply filters
+        if os_type:
+            query = query.where(Agent.os_type == os_type)
+        
+        if connected is not None:
+            query = query.where(Agent.is_connected == connected)
+        
+        if healthy is not None:
+            query = query.where(Agent.healthy == healthy)
+        
+        if search:
+            # Search in hostname, instance_id, or service_name
+            search_pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    Agent.host_name.ilike(search_pattern),
+                    Agent.instance_id.ilike(search_pattern),
+                    Agent.service_name.ilike(search_pattern)
+                )
+            )
+        
+        # Apply ordering and pagination
+        query = query.order_by(desc(Agent.updated_at)).offset(skip).limit(limit)
+        
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+    
+    async def count_filtered(
+        self,
+        os_type: Optional[str] = None,
+        connected: Optional[bool] = None,
+        healthy: Optional[bool] = None,
+        search: Optional[str] = None
+    ) -> int:
+        """Count total number of agents with filters."""
+        query = select(func.count(Agent.id))
+        
+        # Apply same filters as get_all_filtered
+        if os_type:
+            query = query.where(Agent.os_type == os_type)
+        
+        if connected is not None:
+            query = query.where(Agent.is_connected == connected)
+        
+        if healthy is not None:
+            query = query.where(Agent.healthy == healthy)
+        
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    Agent.host_name.ilike(search_pattern),
+                    Agent.instance_id.ilike(search_pattern),
+                    Agent.service_name.ilike(search_pattern)
+                )
+            )
+        
+        result = await self.db.execute(query)
+        return result.scalar_one()
+    
     async def count(self) -> int:
         """Count total number of agents."""
         result = await self.db.execute(select(func.count(Agent.id)))
@@ -93,14 +165,15 @@ class AgentRepository:
         return agent
     
     async def mark_disconnected(self, instance_ids_to_keep: List[str]) -> int:
-        """Mark agents as disconnected if they're not in the provided list."""
+        """Mark agents as disconnected if they're not in the provided list.
+        Also marks them as unhealthy since a disconnected agent cannot be healthy."""
         from sqlalchemy import update
         
         result = await self.db.execute(
             update(Agent)
             .where(Agent.instance_id.notin_(instance_ids_to_keep))
             .where(Agent.is_connected == True)
-            .values(is_connected=False)
+            .values(is_connected=False, healthy=False)
         )
         await self.db.commit()
         return result.rowcount
