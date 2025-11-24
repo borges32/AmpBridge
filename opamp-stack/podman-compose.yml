@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: opamp-postgres
+    environment:
+      POSTGRES_USER: opamp
+      POSTGRES_PASSWORD: opamp_password
+      POSTGRES_DB: opamp_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:Z
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opamp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - opamp-network
+    # Podman-specific: run as specific user
+    userns_mode: keep-id
+    security_opt:
+      - label=disable
+
+  opamp-server:
+    image: local/opamp-server:latest
+    container_name: opamp-server    
+    command: ["/usr/local/bin/opamp-server"]       
+    ports:
+      - "4321:4321"  # UI
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4321/"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - opamp-network
+    # Podman-specific
+    userns_mode: keep-id
+    security_opt:
+      - label=disable
+
+  backend:
+    image: local/opamp-backend:latest
+    container_name: opamp-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opamp-server:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - opamp-network
+    restart: unless-stopped
+    # Podman-specific
+    userns_mode: keep-id
+    security_opt:
+      - label=disable
+
+  haproxy:
+    image: haproxy:2.9
+    container_name: opamp-haproxy
+    depends_on:
+      - opamp-server
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro,Z
+    ports:
+      - "4320:4320"       # HTTP
+    networks:
+      - opamp-network
+    # Podman-specific
+    userns_mode: keep-id
+    security_opt:
+      - label=disable
+
+  frontend:
+    image: local/opamp-frontend:latest
+    container_name: opamp-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://backend:8000
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - opamp-network
+    restart: unless-stopped
+    # Podman-specific
+    userns_mode: keep-id
+    security_opt:
+      - label=disable
+
+networks:
+  opamp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
