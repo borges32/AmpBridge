@@ -61,6 +61,12 @@ class Agent(Base):
     # Relationships
     health_records: Mapped[list["AgentHealth"]] = relationship("AgentHealth", back_populates="agent", cascade="all, delete-orphan")
     configs: Mapped[list["AgentConfig"]] = relationship("AgentConfig", back_populates="agent", cascade="all, delete-orphan")
+    pipeline_health_records: Mapped[list["AgentPipelineHealth"]] = relationship(
+        "AgentPipelineHealth", 
+        foreign_keys="[AgentPipelineHealth.instance_id]",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
     # Indexes
     __table_args__ = (

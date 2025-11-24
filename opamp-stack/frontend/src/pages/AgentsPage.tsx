@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Button, Tag, Space, Input, Select, Card, message } from 'antd';
+import { Table, Button, Tag, Space, Input, Select, Card, message, Modal } from 'antd';
 import {
   DownloadOutlined,
   EyeOutlined,
@@ -8,6 +8,8 @@ import {
   CloseCircleOutlined,
   SearchOutlined,
   FileExcelOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -35,13 +37,13 @@ const AgentsPage: React.FC = () => {
   });
 
   // Fetch agents with filters
-  const { data: agentsData, isLoading: agentsLoading } = useQuery({
+  const { data: agentsData, isLoading: agentsLoading, refetch: refetchAgents } = useQuery({
     queryKey: ['agents', filters],
     queryFn: () => agentService.getAgents(filters),
   });
 
   // Fetch stats
-  const { data: statsData, isLoading: statsLoading } = useQuery({
+  const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['agentStats'],
     queryFn: () => agentService.getAgentStats(),
     refetchInterval: 30000, // Refetch every 30 seconds
@@ -86,6 +88,54 @@ const AgentsPage: React.FC = () => {
   // Handle view health - navigate to health detail page
   const handleViewHealth = (agent: Agent) => {
     navigate(`/agents/${agent.instance_id}/health`);
+  };
+
+  // Handle delete agent with double confirmation
+  const handleDeleteAgent = (agent: Agent) => {
+    Modal.confirm({
+      title: 'Delete Agent?',
+      icon: <ExclamationCircleOutlined />,
+      content: (
+        <div>
+          <p>
+            Are you sure you want to <strong className="text-red-600">permanently delete</strong> this agent?
+          </p>
+          <div className="mt-3 p-3 bg-gray-100 rounded">
+            <p className="mb-1">
+              <strong>Instance ID:</strong> {agent.instance_id}
+            </p>
+            <p className="mb-1">
+              <strong>Hostname:</strong> {agent.host_name}
+            </p>
+          </div>
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
+            <p className="text-red-700 font-semibold mb-2">⚠️ Warning: This action cannot be undone!</p>
+            <p className="text-sm text-red-600">This will permanently delete:</p>
+            <ul className="text-sm text-red-600 ml-4 mt-1">
+              <li>• Agent information</li>
+              <li>• All health history records</li>
+              <li>• All configuration versions</li>
+              <li>• All pipeline health records</li>
+            </ul>
+          </div>
+        </div>
+      ),
+      okText: 'Yes, Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      width: 600,
+      onOk: async () => {
+        try {
+          const result = await agentService.deleteAgent(agent.instance_id);
+          message.success(result.message || 'Agent deleted successfully');
+          // Refetch both agents list and stats
+          refetchAgents();
+          refetchStats();
+        } catch (error: any) {
+          message.error(error.detail || 'Failed to delete agent');
+        }
+      },
+    });
   };
 
   // Table columns definition
@@ -172,6 +222,14 @@ const AgentsPage: React.FC = () => {
           >
             Config
           </Button>
+          <Button
+            type="text"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteAgent(record)}
+            title="Delete Agent"
+          />
         </Space>
       ),
     },

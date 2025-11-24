@@ -401,3 +401,40 @@ async def restore_config_version(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+@router.delete("/{instance_id}", status_code=status.HTTP_200_OK)
+async def delete_agent(
+    instance_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete an agent and all its associated history.
+    Requires authentication.
+    
+    This endpoint permanently removes:
+    - Agent basic information
+    - All health history records
+    - All configuration versions
+    - All pipeline/component health records
+    
+    **Warning:** This action cannot be undone!
+    
+    - **instance_id**: Agent instance ID to delete
+    """
+    agent_repo = AgentRepository(db)
+    
+    deleted = await agent_repo.delete_with_history(instance_id)
+    
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent with instance_id '{instance_id}' not found"
+        )
+    
+    return {
+        "success": True,
+        "message": f"Agent '{instance_id}' and all its history have been permanently deleted",
+        "instance_id": instance_id
+    }

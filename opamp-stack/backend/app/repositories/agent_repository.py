@@ -284,3 +284,28 @@ class AgentRepository:
         """Delete an agent."""
         await self.db.delete(agent)
         await self.db.commit()
+    
+    async def delete_with_history(self, instance_id: str) -> bool:
+        """Delete an agent and all its associated history.
+        
+        This will cascade delete:
+        - All health records (agent_health)
+        - All config versions (agent_configs)
+        - All pipeline health records (agent_pipeline_health)
+        
+        Args:
+            instance_id: Agent instance ID
+            
+        Returns:
+            True if agent was found and deleted, False if not found
+        """
+        agent = await self.get_by_instance_id(instance_id)
+        
+        if not agent:
+            return False
+        
+        # Delete agent - cascades to all related records
+        await self.db.delete(agent)
+        await self.db.commit()
+        
+        return True

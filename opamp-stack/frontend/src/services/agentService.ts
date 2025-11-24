@@ -143,6 +143,15 @@ class AgentService {
   async exportAgentsCSV(): Promise<Blob> {
     return apiClient.downloadFile('/api/v1/agents/csv');
   }
+
+  /**
+   * Delete an agent and all its history
+   */
+  async deleteAgent(instanceId: string): Promise<{ success: boolean; message: string; instance_id: string }> {
+    return apiClient.delete<{ success: boolean; message: string; instance_id: string }>(
+      `/api/v1/agents/${instanceId}`
+    );
+  }
 }
 
 export const agentService = new AgentService();
