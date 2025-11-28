@@ -4,7 +4,9 @@ import { ApiError } from '@/types';
 // ============================================================================
 // API Client Configuration
 // ============================================================================
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use empty string to use relative path (nginx will proxy /api/ to backend)
+// Or set VITE_API_URL to full URL like http://host:8000 for direct access
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 class ApiClient {
   private client: AxiosInstance;

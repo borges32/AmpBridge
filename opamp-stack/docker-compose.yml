@@ -58,16 +58,21 @@ services:
     restart: unless-stopped
 
   haproxy:
-    image: haproxy:2.9
+    image: haproxy:3.2-alpine
     container_name: opamp-haproxy
     depends_on:
       - opamp-server
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     ports:
-      - "4320:4320"       # HTTP
+      - "4320:4320"       # OpAMP Protocol
+      - "8404:8404"       # HAProxy Stats
     networks:
       - opamp-network
+    ulimits:
+      nofile:
+        soft: 524288
+        hard: 524288
 
   frontend:
     build:
@@ -81,7 +86,8 @@ services:
     ports:
       - "3000:80"
     environment:
-      - VITE_API_URL=http://backend:8000
+      # Empty or relative path - nginx will proxy /api/ to backend
+      - VITE_API_URL=
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
       interval: 30s
