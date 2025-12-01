@@ -70,8 +70,10 @@ class AgentService {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
+    // Use relative path to leverage nginx proxy
+    const baseUrl = import.meta.env.VITE_API_URL || '';
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/agents/${instanceId}/config`,
+      `${baseUrl}/api/v1/agents/${instanceId}/config`,
       {
         method: 'GET',
         cache: 'no-store', // Prevent caching to ensure fresh data
