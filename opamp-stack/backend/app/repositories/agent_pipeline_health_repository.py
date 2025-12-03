@@ -97,7 +97,7 @@ class AgentPipelineHealthRepository:
         self, 
         instance_id: str,
         component_name: str,
-        keep_last: int = 10
+        keep_last: int = 5
     ) -> int:
         """
         Delete old component health records, keeping only the last N records.
@@ -105,7 +105,7 @@ class AgentPipelineHealthRepository:
         Args:
             instance_id: Agent instance ID
             component_name: Component name
-            keep_last: Number of records to keep (default: 10)
+            keep_last: Number of records to keep (default: 5)
             
         Returns:
             Number of records deleted

@@ -49,13 +49,13 @@ class AgentHealthRepository:
         )
         return list(result.scalars().all())
     
-    async def cleanup_old_records(self, instance_id: str, keep_last: int = 10) -> int:
+    async def cleanup_old_records(self, instance_id: str, keep_last: int = 5) -> int:
         """
         Delete old health records, keeping only the last N records for an agent.
         
         Args:
             instance_id: Agent instance ID
-            keep_last: Number of records to keep (default: 10)
+            keep_last: Number of records to keep (default: 5)
             
         Returns:
             Number of records deleted

@@ -12,12 +12,23 @@ from app.routers import auth, agents, config, opamp, users
 from app.background import background_tasks
 
 # Configure logging
+log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
 logging.basicConfig(
-    level=logging.INFO if not settings.DEBUG else logging.DEBUG,
+    level=log_level,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
 logger = logging.getLogger(__name__)
+
+# Configure specific loggers
+if not settings.LOG_HTTP_REQUESTS:
+    # Suppress httpx logs unless explicitly enabled
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
+if not settings.LOG_SYNC_OPERATIONS:
+    # Reduce verbosity of sync operations
+    logging.getLogger("app.services.opamp_service").setLevel(logging.WARNING)
+    logging.getLogger("app.background").setLevel(logging.WARNING)
 
 
 @asynccontextmanager

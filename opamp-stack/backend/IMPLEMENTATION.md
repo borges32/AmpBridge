@@ -25,7 +25,7 @@
 │  ✅ agent_health                                     │
 │     → Health history                                │
 │     → Status time (nanoseconds)                     │
-│     → Limitation: last 10 records per agent ⭐      │
+│     → Limitation: last 5 records per agent ⭐       │
 │     → 7 fields + timestamp                          │
 │                                                      │
 │  ✅ agent_pipeline_health ⭐ NEW                     │
@@ -164,7 +164,7 @@ Endpoints:
 │  ✅ Detect changes via SHA256 hash              │
 │  ✅ Version configs automatically               │
 │  ✅ Mark disconnected agents                    │
-│  ✅ Automatic cleanup (last 10 records) ⭐      │
+│  ✅ Automatic cleanup (last 5 records) ⭐       │
 │  ✅ Version configs automatically               │
 │  ✅ Mark divergence alerts                      │
 │  ✅ Identify disconnected agents                │

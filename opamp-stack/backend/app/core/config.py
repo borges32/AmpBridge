@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "OpAMP Backend API"
     DEBUG: bool = False
     
+    # Logging
+    LOG_LEVEL: str = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    LOG_SYNC_OPERATIONS: bool = True  # Enable/disable sync operation logs
+    LOG_HTTP_REQUESTS: bool = False  # Enable/disable HTTP request logs (httpx)
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -223,7 +223,7 @@ Agent health history.
 - `idx_health_instance_created` (instance_id, created_at)
 
 **⚠️ Record Limitation:**
-- System automatically maintains only the **last 10 records** per agent
+- System automatically maintains only the **last 5 records** per agent
 - Cleanup executed at each OpAMP synchronization
 - Ensures performance and database growth control
 
@@ -707,7 +707,7 @@ Health history of an agent.
 ]
 ```
 
-**⚠️ Note:** The system automatically maintains only the last 10 records per agent.
+**⚠️ Note:** The system automatically maintains only the last 5 records per agent.
 
 #### `GET /api/v1/agents/{instance_id}/pipelines/health` ⭐ NEW
 Current health status of agent pipelines.

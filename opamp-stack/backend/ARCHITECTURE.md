@@ -248,7 +248,7 @@ Sincroniza um agent individual.
 2. Upsert em `agents`
 3. Cria registro em `agent_health`
 4. Extrai e salva pipeline health ⭐ NOVO
-5. Executa cleanup (mantém últimos 10 registros) ⭐
+5. Executa cleanup (mantém últimos 5 registros) ⭐
 6. Calcula hash de config
 7. Se hash mudou:
    - Cria nova versão em `agent_configs`

@@ -90,6 +90,7 @@ class AgentHealth(Base):
     healthy: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status: Mapped[str] = mapped_column(String(100), nullable=False)  # StatusOK, StatusFailed, etc.
     status_time_unix_nano: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    start_time_unix_nano: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)  # Agent start time for 'up' status
     last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     component_health_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string if needed
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -3,7 +3,7 @@ Pydantic schemas for request/response validation.
 """
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 # ===== User Schemas =====
@@ -103,6 +103,7 @@ class AgentHealthBase(BaseModel):
 
 class AgentHealthCreate(AgentHealthBase):
     status_time_unix_nano: Optional[int] = None
+    start_time_unix_nano: Optional[int] = None
     last_error: Optional[str] = None
     component_health_summary: Optional[str] = None
 
@@ -110,12 +111,19 @@ class AgentHealthCreate(AgentHealthBase):
 class AgentHealthResponse(AgentHealthBase):
     id: int
     status_time_unix_nano: Optional[int] = None
+    start_time_unix_nano: Optional[int] = None
     last_error: Optional[str] = None
     component_health_summary: Optional[str] = None
+    up: bool = Field(default=False)  # Computed field
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
+    
+    @model_validator(mode='after')
+    def compute_up_status(self):
+        """Compute 'up' status based on start_time_unix_nano."""
+        self.up = self.start_time_unix_nano is not None and self.start_time_unix_nano > 0
+        return self
 
 
 # ===== Agent Pipeline Health Schemas =====

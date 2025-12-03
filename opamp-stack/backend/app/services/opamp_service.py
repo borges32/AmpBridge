@@ -164,6 +164,39 @@ class OpAMPService:
         )
         await self.pipeline_health_repo.create(health_create)
     
+    async def _cleanup_old_health_records(self) -> int:
+        """
+        Cleanup old health records for all agents, keeping only the last 5 records per agent.
+        Uses a single SQL query for efficiency.
+        
+        Returns:
+            Number of records deleted
+        """
+        from sqlalchemy import text
+        
+        query = text("""
+            DELETE FROM agent_health
+            WHERE id NOT IN (
+                SELECT id FROM (
+                    SELECT id,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY instance_id 
+                               ORDER BY created_at DESC
+                           ) AS row_num
+                    FROM agent_health
+                ) AS ranked
+                WHERE row_num <= 5
+            )
+        """)
+        
+        result = await self.db.execute(query)
+        deleted_count = result.rowcount
+        
+        if deleted_count > 0:
+            logger.info(f"Cleaned up {deleted_count} old health records")
+        
+        return deleted_count
+    
     async def sync_agent(
         self, 
         agent_data: Dict[str, Any],
@@ -196,6 +229,7 @@ class OpAMPService:
         healthy = health_data.get("healthy", False)
         health_status = health_data.get("status", "UNKNOWN")
         status_time_unix_nano = health_data.get("status_time_unix_nano")
+        start_time_unix_nano = health_data.get("start_time_unix_nano")  # Agent start time for 'up' status
         
         # Upsert agent
         agent_dict = {
@@ -218,12 +252,12 @@ class OpAMPService:
             instance_id=instance_id,
             healthy=healthy,
             status=health_status,
-            status_time_unix_nano=status_time_unix_nano
+            status_time_unix_nano=status_time_unix_nano,
+            start_time_unix_nano=start_time_unix_nano
         )
         await self.health_repo.create(health_create)
         
-        # Cleanup old health records - keep only last 10
-        await self.health_repo.cleanup_old_records(instance_id, keep_last=10)
+        # Note: Cleanup is now done in bulk at the end of batch sync for better performance
         
         # Extract and save pipeline/component health
         component_health_map = health_data.get("component_health_map", {})
@@ -477,6 +511,7 @@ class OpAMPService:
                 healthy = health_data.get("healthy", False)
                 health_status = health_data.get("status", "UNKNOWN")
                 status_time_unix_nano = health_data.get("status_time_unix_nano")
+                start_time_unix_nano = health_data.get("start_time_unix_nano")  # Agent start time for 'up' status
                 
                 # Prepare agent data
                 agent_dict = {
@@ -498,7 +533,8 @@ class OpAMPService:
                     instance_id=instance_id,
                     healthy=healthy,
                     status=health_status,
-                    status_time_unix_nano=status_time_unix_nano
+                    status_time_unix_nano=status_time_unix_nano,
+                    start_time_unix_nano=start_time_unix_nano
                 )
                 health_data_list.append(health_create)
                 
@@ -599,7 +635,11 @@ class OpAMPService:
             logger.debug(f"Bulk creating {len(config_creates)} new config versions")
             await self.config_repo.bulk_create(config_creates)
         
-        # Phase 7: Commit all changes
+        # Phase 7: Cleanup old health records - keep only last 5 per agent
+        logger.debug(f"Cleaning up old health records for {len(instance_ids)} agents")
+        await self._cleanup_old_health_records()
+        
+        # Phase 8: Commit all changes
         await self.db.commit()
         
         return {

@@ -46,6 +46,11 @@ services:
         condition: service_healthy
     env_file:
       - ./backend/.env
+    environment:
+      # Log configuration (override .env if needed)
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}              # DEBUG, INFO, WARNING, ERROR, CRITICAL
+      - LOG_SYNC_OPERATIONS=${LOG_SYNC_OPERATIONS:-true}   # true/false - Enable/disable sync logs
+      - LOG_HTTP_REQUESTS=${LOG_HTTP_REQUESTS:-false}      # true/false - Enable/disable HTTP logs
     ports:
       - "8000:8000"
     healthcheck:
