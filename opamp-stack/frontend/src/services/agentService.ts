@@ -70,10 +70,10 @@ class AgentService {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    // Use relative path to leverage nginx proxy
-    const baseUrl = import.meta.env.VITE_API_URL || '';
+    // Use relative path to work with nginx proxy in production
+    // In dev, vite proxy will handle it
     const response = await fetch(
-      `${baseUrl}/api/v1/agents/${instanceId}/config`,
+      `/api/v1/agents/${instanceId}/config`,
       {
         method: 'GET',
         cache: 'no-store', // Prevent caching to ensure fresh data
