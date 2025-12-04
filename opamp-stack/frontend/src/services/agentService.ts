@@ -154,6 +154,16 @@ class AgentService {
       `/api/v1/agents/${instanceId}`
     );
   }
+
+  /**
+   * Sync a specific agent with OpAMP server
+   */
+  async syncAgent(instanceId: string): Promise<{ success: boolean; message: string; instance_id: string; updated: boolean; config_versioned: boolean }> {
+    return apiClient.post<{ success: boolean; message: string; instance_id: string; updated: boolean; config_versioned: boolean }>(
+      `/api/v1/opamp/sync/${instanceId}`,
+      {}
+    );
+  }
 }
 
 export const agentService = new AgentService();

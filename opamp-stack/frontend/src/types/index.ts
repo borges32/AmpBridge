@@ -175,6 +175,17 @@ export interface RestoreConfigRequest {
 }
 
 // ============================================================================
+// Sync Types
+// ============================================================================
+export interface SingleAgentSyncResponse {
+  success: boolean;
+  message: string;
+  instance_id: string;
+  updated: boolean;
+  config_versioned: boolean;
+}
+
+// ============================================================================
 // Error Types
 // ============================================================================
 export interface ApiError {

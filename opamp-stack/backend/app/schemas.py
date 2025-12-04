@@ -229,6 +229,15 @@ class SyncResponse(BaseModel):
     errors: list[str] = []
 
 
+class SingleAgentSyncResponse(BaseModel):
+    """Response for single agent synchronization."""
+    success: bool
+    message: str
+    instance_id: str
+    updated: bool
+    config_versioned: bool
+
+
 # ===== Config Update Schemas =====
 class ConfigUpdateRequest(BaseModel):
     config: str = Field(..., description="YAML configuration content")

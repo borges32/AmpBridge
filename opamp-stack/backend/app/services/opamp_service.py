@@ -63,6 +63,34 @@ class OpAMPService:
             logger.error(f"Failed to fetch agents from OpAMP: {e}")
             raise
     
+    async def fetch_single_agent_from_opamp(self, instance_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch a single agent from OpAMP server by instance_id.
+        
+        Args:
+            instance_id: The instance ID of the agent to fetch
+            
+        Returns:
+            Agent data from OpAMP or None if not found
+        """
+        url = f"{self.opamp_url}/agents/full"
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                agents = response.json()
+                
+                # Find the specific agent by instance_id
+                for agent in agents:
+                    if agent.get("instanceId") == instance_id:
+                        return agent
+                
+                return None
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch agent {instance_id} from OpAMP: {e}")
+            raise
+    
     def extract_agent_attributes(self, status: Dict) -> Dict[str, Any]:
         """
         Extract agent attributes from OpAMP status.
@@ -376,6 +404,53 @@ class OpAMPService:
             "updated": True,
             "config_versioned": config_versioned
         }
+    
+    async def sync_single_agent(self, instance_id: str) -> Dict[str, Any]:
+        """
+        Synchronize a single agent by instance_id.
+        Fetches the agent from OpAMP server and updates the database.
+        
+        Args:
+            instance_id: The instance ID of the agent to sync
+            
+        Returns:
+            Dict with sync results including success status and details
+        """
+        try:
+            logger.info(f"Fetching agent {instance_id} from OpAMP server...")
+            agent_data = await self.fetch_single_agent_from_opamp(instance_id)
+            
+            if not agent_data:
+                logger.warning(f"Agent {instance_id} not found in OpAMP server")
+                return {
+                    "success": False,
+                    "message": f"Agent {instance_id} not found in OpAMP server",
+                    "instance_id": instance_id,
+                    "updated": False,
+                    "config_versioned": False
+                }
+            
+            logger.info(f"Synchronizing agent {instance_id}...")
+            result = await self.sync_agent(agent_data, source="MANUAL_SYNC")
+            
+            logger.info(f"Agent {instance_id} synchronized successfully")
+            return {
+                "success": True,
+                "message": f"Agent {instance_id} synchronized successfully",
+                "instance_id": instance_id,
+                "updated": result.get("updated", False),
+                "config_versioned": result.get("config_versioned", False)
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to sync agent {instance_id}: {e}", exc_info=True)
+            return {
+                "success": False,
+                "message": f"Failed to sync agent: {str(e)}",
+                "instance_id": instance_id,
+                "updated": False,
+                "config_versioned": False
+            }
     
     async def sync_all_agents(self) -> SyncResponse:
         """

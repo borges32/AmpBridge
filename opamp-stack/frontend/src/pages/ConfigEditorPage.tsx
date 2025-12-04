@@ -7,6 +7,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ArrowLeftOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -24,6 +25,7 @@ const ConfigEditorPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [editorContent, setEditorContent] = useState<string>('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [syncCountdown, setSyncCountdown] = useState(0);
 
   // Fetch agent details
   const { data: agent, isLoading: agentLoading } = useQuery({
@@ -71,6 +73,40 @@ const ConfigEditorPage: React.FC = () => {
     },
     onError: (error: any) => {
       message.error(error.detail || 'Failed to save configuration');
+    },
+  });
+
+  // Sync agent mutation
+  const syncAgentMutation = useMutation({
+    mutationFn: () => agentService.syncAgent(instanceId!),
+    onSuccess: (data) => {
+      if (data.success) {
+        const updateMsg = data.config_versioned
+          ? 'Agent synchronized successfully! New configuration version created.'
+          : 'Agent synchronized successfully!';
+        message.success(updateMsg);
+        
+        // Start countdown
+        setSyncCountdown(10);
+        const countdown = setInterval(() => {
+          setSyncCountdown((prev) => {
+            if (prev <= 1) {
+              clearInterval(countdown);
+              // Refresh data after countdown
+              queryClient.invalidateQueries({ queryKey: ['agentConfig', instanceId] });
+              queryClient.invalidateQueries({ queryKey: ['agent', instanceId] });
+              refetchConfig();
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        message.error(data.message || 'Failed to sync agent');
+      }
+    },
+    onError: (error: any) => {
+      message.error(error.detail || 'Failed to sync agent');
     },
   });
 
@@ -148,6 +184,15 @@ const ConfigEditorPage: React.FC = () => {
             <h1 className="text-3xl font-bold m-0">Agent Configuration</h1>
           </Space>
           <Space>
+            <Button
+              type="primary"
+              icon={<SyncOutlined spin={syncAgentMutation.isPending || syncCountdown > 0} />}
+              onClick={() => syncAgentMutation.mutate()}
+              loading={syncAgentMutation.isPending}
+              disabled={syncCountdown > 0}
+            >
+              {syncCountdown > 0 ? `Wait ${syncCountdown}s...` : 'Sync Agent'}
+            </Button>
             <Button
               icon={<HistoryOutlined />}
               onClick={() => navigate(`/agents/${instanceId}/config/history`)}
