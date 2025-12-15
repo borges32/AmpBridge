@@ -2,14 +2,17 @@
 Repository layer for Agent database operations.
 Provides CRUD operations for Agent model.
 """
+import logging
 from typing import Optional, List
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, or_
+from sqlalchemy import select, func, desc, or_, update
 from sqlalchemy.orm import selectinload
 
-from app.models.models import Agent, AgentHealth, AgentConfig
+from app.models.models import Agent, AgentHealth, AgentConfig, AgentPipelineHealth
 from app.schemas import AgentCreate, AgentUpdate
+
+logger = logging.getLogger(__name__)
 
 
 class AgentRepository:
@@ -171,13 +174,60 @@ class AgentRepository:
         await self.db.refresh(agent)
         return agent
     
+    async def upsert_by_hostname(self, instance_id: str, host_name: str, agent_data: dict) -> Agent:
+        """Create or update an agent using hostname as sync key.
+        
+        When USE_HOSTNAME_AS_SYNC_KEY is enabled, this method:
+        1. First tries to find agent by hostname
+        2. If found, updates it with new instance_id and data
+        3. If not found, falls back to instance_id lookup
+        4. Creates new agent if neither hostname nor instance_id exist
+        
+        This allows agents to maintain their history even when instance_id changes.
+        """
+        # Try to find by hostname first
+        agent = await self.get_by_host_name(host_name)
+        
+        old_instance_id = None
+        if agent:
+            # Found by hostname - need to check if instance_id changed
+            old_instance_id = agent.instance_id
+        else:
+            # Fallback to instance_id
+            agent = await self.get_by_instance_id(instance_id)
+        
+        if agent:
+            # Update existing agent
+            for field, value in agent_data.items():
+                if hasattr(agent, field):
+                    setattr(agent, field, value)
+            
+            # If instance_id changed, update related tables
+            if old_instance_id and old_instance_id != instance_id:
+                logger.info(f"Hostname '{host_name}': instance_id changed from '{old_instance_id}' to '{instance_id}' - updating related records")
+                await self._update_related_instance_ids(old_instance_id, instance_id)
+                # Explicitly update the instance_id
+                agent.instance_id = instance_id
+            
+            agent.last_seen_at = datetime.utcnow()
+        else:
+            # Create new agent
+            agent = Agent(**agent_data)
+            agent.last_seen_at = datetime.utcnow()
+            self.db.add(agent)
+        
+        await self.db.commit()
+        await self.db.refresh(agent)
+        return agent
+    
     async def bulk_upsert(self, agents_data: List[dict]) -> List[Agent]:
         """Bulk create or update agents.
         
         Optimized for performance with large batches:
-        - Single query to fetch existing agents
+        - Single query to fetch existing agents (by instance_id or hostname)
         - Batch updates and inserts
         - Single commit
+        - Supports USE_HOSTNAME_AS_SYNC_KEY mode
         
         Args:
             agents_data: List of agent data dicts with instance_id
@@ -188,14 +238,37 @@ class AgentRepository:
         if not agents_data:
             return []
         
-        # Extract instance_ids
-        instance_ids = [data['instance_id'] for data in agents_data]
+        from app.core.config import settings
         
-        # Fetch existing agents in one query
+        # Extract instance_ids and hostnames
+        instance_ids = [data['instance_id'] for data in agents_data]
+        hostnames = [data.get('host_name') for data in agents_data if data.get('host_name')]
+        
+        logger.info(f"bulk_upsert: USE_HOSTNAME_AS_SYNC_KEY={settings.USE_HOSTNAME_AS_SYNC_KEY}, agents={len(agents_data)}, hostnames={len(hostnames)}")
+        
+        # Fetch existing agents by instance_id AND hostname (if hostname sync is enabled)
+        existing_agents_by_instance = {}
+        existing_agents_by_hostname = {}
+        
+        # Always fetch by instance_id first
         result = await self.db.execute(
             select(Agent).where(Agent.instance_id.in_(instance_ids))
         )
-        existing_agents = {agent.instance_id: agent for agent in result.scalars().all()}
+        for agent in result.scalars().all():
+            existing_agents_by_instance[agent.instance_id] = agent
+            if agent.host_name:
+                existing_agents_by_hostname[agent.host_name] = agent
+        
+        logger.info(f"Found {len(existing_agents_by_instance)} agents by instance_id, {len(existing_agents_by_hostname)} with hostnames")
+        
+        # If hostname sync is enabled, also fetch by hostname
+        if settings.USE_HOSTNAME_AS_SYNC_KEY and hostnames:
+            result = await self.db.execute(
+                select(Agent).where(Agent.host_name.in_(hostnames))
+            )
+            for agent in result.scalars().all():
+                if agent.host_name:
+                    existing_agents_by_hostname[agent.host_name] = agent
         
         updated_agents = []
         new_agents = []
@@ -204,13 +277,40 @@ class AgentRepository:
         # Separate updates and inserts
         for data in agents_data:
             instance_id = data['instance_id']
+            host_name = data.get('host_name')
             
-            if instance_id in existing_agents:
-                # Update existing
-                agent = existing_agents[instance_id]
+            agent = None
+            old_instance_id = None
+            
+            # Find existing agent
+            if settings.USE_HOSTNAME_AS_SYNC_KEY and host_name:
+                # Try hostname first
+                agent = existing_agents_by_hostname.get(host_name)
+                if agent:
+                    old_instance_id = agent.instance_id
+                    logger.info(f"[HOSTNAME-SYNC] Found agent by hostname '{host_name}': existing instance_id='{agent.instance_id}', new instance_id='{instance_id}'")
+                else:
+                    logger.info(f"[HOSTNAME-SYNC] No existing agent found for hostname '{host_name}', will check instance_id")
+            
+            if not agent:
+                # Fallback to instance_id
+                agent = existing_agents_by_instance.get(instance_id)
+                if agent:
+                    logger.info(f"[HOSTNAME-SYNC] Found agent by instance_id '{instance_id}'")
+                else:
+                    logger.info(f"[HOSTNAME-SYNC] No existing agent found for instance_id '{instance_id}', will create new")
+            
+            if agent:
+                # Update existing agent
+                if old_instance_id and old_instance_id != instance_id:
+                    logger.info(f"Hostname '{host_name}': instance_id changed from '{old_instance_id}' to '{instance_id}' - CASCADE update will preserve history")
+                
+                # Update all fields including instance_id
+                # ON UPDATE CASCADE foreign keys will automatically update related tables
                 for field, value in data.items():
                     if hasattr(agent, field):
                         setattr(agent, field, value)
+                
                 agent.last_seen_at = now
                 updated_agents.append(agent)
             else:
@@ -316,3 +416,54 @@ class AgentRepository:
         await self.db.commit()
         
         return True
+    
+    async def _update_related_instance_ids(self, old_instance_id: str, new_instance_id: str) -> None:
+        """Update instance_id in all related tables.
+        
+        When hostname-based sync detects an instance_id change, this method
+        updates all related records to use the new instance_id.
+        
+        Uses SET CONSTRAINTS to defer foreign key checks until commit.
+        
+        Updates:
+        - agent_health.instance_id
+        - agent_configs.instance_id
+        - agent_pipeline_health.instance_id
+        
+        Args:
+            old_instance_id: Previous instance_id
+            new_instance_id: New instance_id
+        """
+        from sqlalchemy import text
+        
+        # Defer foreign key constraint checks
+        await self.db.execute(text("SET CONSTRAINTS ALL DEFERRED"))
+        
+        # Update agent_health
+        result = await self.db.execute(
+            update(AgentHealth)
+            .where(AgentHealth.instance_id == old_instance_id)
+            .values(instance_id=new_instance_id)
+        )
+        health_updated = result.rowcount
+        
+        # Update agent_configs
+        result = await self.db.execute(
+            update(AgentConfig)
+            .where(AgentConfig.instance_id == old_instance_id)
+            .values(instance_id=new_instance_id)
+        )
+        config_updated = result.rowcount
+        
+        # Update agent_pipeline_health
+        result = await self.db.execute(
+            update(AgentPipelineHealth)
+            .where(AgentPipelineHealth.instance_id == old_instance_id)
+            .values(instance_id=new_instance_id)
+        )
+        pipeline_updated = result.rowcount
+        
+        logger.info(
+            f"Updated instance_id from '{old_instance_id}' to '{new_instance_id}': "
+            f"health={health_updated}, configs={config_updated}, pipeline={pipeline_updated}"
+        )
