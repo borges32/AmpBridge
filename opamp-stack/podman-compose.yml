@@ -72,6 +72,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}              # DEBUG, INFO, WARNING, ERROR, CRITICAL
       - LOG_SYNC_OPERATIONS=${LOG_SYNC_OPERATIONS:-true}   # true/false - Enable/disable sync logs
       - LOG_HTTP_REQUESTS=${LOG_HTTP_REQUESTS:-false}      # true/false - Enable/disable HTTP logs
+      - USE_HOSTNAME_AS_SYNC_KEY=${USE_HOSTNAME_AS_SYNC_KEY:-true}  # true/false - Use host_name instead of instance_id for sync
     ports:
       - "8000:8000"
     healthcheck:

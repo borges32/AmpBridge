@@ -171,6 +171,235 @@ docker exec -it opamp-postgres psql -U opamp -d opamp -c \
   "SELECT COUNT(*) FROM agent_health WHERE created_at < NOW() - INTERVAL '30 days';"
 ```
 
+### Limpar Toda a Base (Manter Apenas Usuários)
+
+⚠️ **ATENÇÃO: Esta operação é IRREVERSÍVEL! Faça backup antes!**
+
+```bash
+# 1. FAZER BACKUP PRIMEIRO (OBRIGATÓRIO)
+docker exec -t opamp-postgres pg_dump -U opamp opamp > backup_before_cleanup_$(date +%Y%m%d_%H%M%S).sql
+
+# 2. Ver o que será deletado (PREVIEW)
+docker exec -it opamp-postgres psql -U opamp -d opamp << 'EOF'
+SELECT 'agents' as table_name, COUNT(*) as records FROM agents
+UNION ALL
+SELECT 'agent_health', COUNT(*) FROM agent_health
+UNION ALL
+SELECT 'agent_configs', COUNT(*) FROM agent_configs
+UNION ALL
+SELECT 'agent_pipeline_health', COUNT(*) FROM agent_pipeline_health
+UNION ALL
+SELECT 'users (SERÁ MANTIDO)', COUNT(*) FROM users;
+EOF
+
+# 3. LIMPAR TUDO EXCETO USERS (CUIDADO!)
+docker exec -it opamp-postgres psql -U opamp -d opamp << 'EOF'
+-- Desabilitar constraints temporariamente
+SET session_replication_role = 'replica';
+
+-- Limpar tabelas relacionadas aos agentes
+TRUNCATE TABLE agent_pipeline_health CASCADE;
+TRUNCATE TABLE agent_health CASCADE;
+TRUNCATE TABLE agent_configs CASCADE;
+TRUNCATE TABLE agents CASCADE;
+
+-- Reabilitar constraints
+SET session_replication_role = 'origin';
+
+-- Verificar resultado
+SELECT 'agents' as table_name, COUNT(*) as remaining_records FROM agents
+UNION ALL
+SELECT 'agent_health', COUNT(*) FROM agent_health
+UNION ALL
+SELECT 'agent_configs', COUNT(*) FROM agent_configs
+UNION ALL
+SELECT 'agent_pipeline_health', COUNT(*) FROM agent_pipeline_health
+UNION ALL
+SELECT 'users (PRESERVADO)', COUNT(*) FROM users;
+EOF
+
+# 4. Reiniciar sequências (IDs começam do 1 novamente)
+docker exec -it opamp-postgres psql -U opamp -d opamp << 'EOF'
+ALTER SEQUENCE agents_id_seq RESTART WITH 1;
+ALTER SEQUENCE agent_health_id_seq RESTART WITH 1;
+ALTER SEQUENCE agent_configs_id_seq RESTART WITH 1;
+ALTER SEQUENCE agent_pipeline_health_id_seq RESTART WITH 1;
+EOF
+```
+
+### Limpar Base Completa (Incluindo Usuários)
+
+⚠️ **EXTREMO CUIDADO: Apaga TUDO, inclusive usuários!**
+
+```bash
+# 1. BACKUP OBRIGATÓRIO
+docker exec -t opamp-postgres pg_dump -U opamp opamp > backup_full_cleanup_$(date +%Y%m%d_%H%M%S).sql
+
+# 2. LIMPAR TUDO
+docker exec -it opamp-postgres psql -U opamp -d opamp << 'EOF'
+-- Desabilitar constraints
+SET session_replication_role = 'replica';
+
+-- Limpar TODAS as tabelas
+TRUNCATE TABLE agent_pipeline_health CASCADE;
+TRUNCATE TABLE agent_health CASCADE;
+TRUNCATE TABLE agent_configs CASCADE;
+TRUNCATE TABLE agents CASCADE;
+TRUNCATE TABLE users CASCADE;
+
+-- Reabilitar constraints
+SET session_replication_role = 'origin';
+
+-- Resetar sequências
+ALTER SEQUENCE agents_id_seq RESTART WITH 1;
+ALTER SEQUENCE agent_health_id_seq RESTART WITH 1;
+ALTER SEQUENCE agent_configs_id_seq RESTART WITH 1;
+ALTER SEQUENCE agent_pipeline_health_id_seq RESTART WITH 1;
+ALTER SEQUENCE users_id_seq RESTART WITH 1;
+
+-- Verificar que está tudo vazio
+SELECT 'agents' as table_name, COUNT(*) as records FROM agents
+UNION ALL SELECT 'agent_health', COUNT(*) FROM agent_health
+UNION ALL SELECT 'agent_configs', COUNT(*) FROM agent_configs
+UNION ALL SELECT 'agent_pipeline_health', COUNT(*) FROM agent_pipeline_health
+UNION ALL SELECT 'users', COUNT(*) FROM users;
+EOF
+
+# 3. Recriar usuário admin (se necessário)
+docker exec -it opamp-postgres psql -U opamp -d opamp -c \
+  "INSERT INTO users (name, email, login, hashed_password, is_active, created_at, updated_at) 
+   VALUES ('Admin', 'admin@example.com', 'admin', 
+   '\$2b\$12\$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyMGzBfKwxiW', 
+   true, NOW(), NOW());"
+```
+
+### Script Completo de Limpeza (Recomendado)
+
+Salve como `cleanup_database.sh`:
+
+```bash
+#!/bin/bash
+
+# Script para limpar base de dados mantendo usuários
+# Uso: ./cleanup_database.sh
+
+set -e
+
+# Cores
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${YELLOW}========================================${NC}"
+echo -e "${YELLOW}Limpeza de Base de Dados${NC}"
+echo -e "${YELLOW}========================================${NC}"
+echo ""
+
+# Verificar se PostgreSQL está rodando
+if ! docker ps | grep -q opamp-postgres; then
+    echo -e "${RED}❌ Container PostgreSQL não está rodando${NC}"
+    exit 1
+fi
+
+# Mostrar estatísticas atuais
+echo -e "${YELLOW}Estatísticas atuais:${NC}"
+docker exec -it opamp-postgres psql -U opamp -d opamp << 'EOF'
+SELECT 'agents' as table_name, COUNT(*) as records FROM agents
+UNION ALL SELECT 'agent_health', COUNT(*) FROM agent_health
+UNION ALL SELECT 'agent_configs', COUNT(*) FROM agent_configs
+UNION ALL SELECT 'agent_pipeline_health', COUNT(*) FROM agent_pipeline_health
+UNION ALL SELECT 'users', COUNT(*) FROM users
+ORDER BY table_name;
+EOF
+echo ""
+
+# Confirmar ação
+echo -e "${RED}⚠️  ATENÇÃO: Esta operação irá DELETAR todos os dados de agentes!${NC}"
+echo -e "${YELLOW}Os usuários serão MANTIDOS.${NC}"
+echo ""
+read -p "Deseja continuar? (digite 'SIM' para confirmar): " confirm
+
+if [ "$confirm" != "SIM" ]; then
+    echo -e "${GREEN}Operação cancelada.${NC}"
+    exit 0
+fi
+
+# Fazer backup
+echo ""
+echo -e "${YELLOW}[1/3] Criando backup...${NC}"
+BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
+docker exec -t opamp-postgres pg_dump -U opamp opamp > "$BACKUP_FILE"
+echo -e "${GREEN}✓ Backup criado: $BACKUP_FILE${NC}"
+
+# Limpar base
+echo ""
+echo -e "${YELLOW}[2/3] Limpando base de dados...${NC}"
+docker exec -it opamp-postgres psql -U opamp -d opamp << 'EOF'
+SET session_replication_role = 'replica';
+TRUNCATE TABLE agent_pipeline_health CASCADE;
+TRUNCATE TABLE agent_health CASCADE;
+TRUNCATE TABLE agent_configs CASCADE;
+TRUNCATE TABLE agents CASCADE;
+SET session_replication_role = 'origin';
+
+ALTER SEQUENCE agents_id_seq RESTART WITH 1;
+ALTER SEQUENCE agent_health_id_seq RESTART WITH 1;
+ALTER SEQUENCE agent_configs_id_seq RESTART WITH 1;
+ALTER SEQUENCE agent_pipeline_health_id_seq RESTART WITH 1;
+EOF
+echo -e "${GREEN}✓ Base limpa com sucesso${NC}"
+
+# Verificar resultado
+echo ""
+echo -e "${YELLOW}[3/3] Verificando resultado...${NC}"
+docker exec -it opamp-postgres psql -U opamp -d opamp << 'EOF'
+SELECT 'agents' as table_name, COUNT(*) as records FROM agents
+UNION ALL SELECT 'agent_health', COUNT(*) FROM agent_health
+UNION ALL SELECT 'agent_configs', COUNT(*) FROM agent_configs
+UNION ALL SELECT 'agent_pipeline_health', COUNT(*) FROM agent_pipeline_health
+UNION ALL SELECT 'users (PRESERVADO)', COUNT(*) FROM users
+ORDER BY table_name;
+EOF
+
+echo ""
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}✓ Limpeza concluída com sucesso!${NC}"
+echo -e "${GREEN}========================================${NC}"
+echo ""
+echo -e "${YELLOW}Backup salvo em: $BACKUP_FILE${NC}"
+echo -e "${YELLOW}Para restaurar: docker exec -i opamp-postgres psql -U opamp opamp < $BACKUP_FILE${NC}"
+echo ""
+```
+
+### Comandos Rápidos de Limpeza
+
+```bash
+# Limpar apenas health antigo (> 7 dias)
+docker exec -it opamp-postgres psql -U opamp -d opamp -c \
+  "DELETE FROM agent_health WHERE created_at < NOW() - INTERVAL '7 days';"
+
+# Limpar apenas pipeline health antigo (> 1 dia)
+docker exec -it opamp-postgres psql -U opamp -d opamp -c \
+  "DELETE FROM agent_pipeline_health WHERE created_at < NOW() - INTERVAL '1 day';"
+
+# Deletar agentes desconectados há mais de 30 dias
+docker exec -it opamp-postgres psql -U opamp -d opamp -c \
+  "DELETE FROM agents WHERE is_connected = false AND updated_at < NOW() - INTERVAL '30 days';"
+
+# Deletar versões antigas de config (manter apenas últimas 10 por agente)
+docker exec -it opamp-postgres psql -U opamp -d opamp << 'EOF'
+DELETE FROM agent_configs
+WHERE id NOT IN (
+  SELECT id FROM (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY instance_id ORDER BY version DESC) as rn
+    FROM agent_configs
+  ) sub
+  WHERE rn <= 10
+);
+EOF
+```
+
 ### Backup de Dados
 
 ```bash

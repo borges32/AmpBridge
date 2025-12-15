@@ -35,6 +35,13 @@ class AgentRepository:
         )
         return result.scalar_one_or_none()
     
+    async def get_by_host_name(self, host_name: str) -> Optional[Agent]:
+        """Get agent by host_name."""
+        result = await self.db.execute(
+            select(Agent).where(Agent.host_name == host_name)
+        )
+        return result.scalar_one_or_none()
+    
     async def get_by_instance_id_with_relations(self, instance_id: str) -> Optional[Agent]:
         """Get agent with health and config relations."""
         result = await self.db.execute(

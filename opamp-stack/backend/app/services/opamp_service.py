@@ -251,6 +251,7 @@ class OpAMPService:
         
         # Extract attributes
         attributes = self.extract_agent_attributes(status)
+        host_name = attributes.get("host_name")
         
         # Extract health
         health_data = status.get("health", {})
@@ -262,7 +263,7 @@ class OpAMPService:
         # Upsert agent
         agent_dict = {
             "instance_id": instance_id,
-            "host_name": attributes.get("host_name"),
+            "host_name": host_name,
             "os_type": attributes.get("os_type"),
             "os_description": attributes.get("os_description"),
             "service_name": attributes.get("service_name"),
@@ -273,7 +274,12 @@ class OpAMPService:
             "started_at": started_at
         }
         
-        agent = await self.agent_repo.upsert(instance_id, agent_dict)
+        # Use hostname-based sync if enabled and host_name is available
+        if settings.USE_HOSTNAME_AS_SYNC_KEY and host_name:
+            logger.debug(f"Using host_name '{host_name}' as sync key for instance_id '{instance_id}'")
+            agent = await self.agent_repo.upsert_by_hostname(instance_id, host_name, agent_dict)
+        else:
+            agent = await self.agent_repo.upsert(instance_id, agent_dict)
         
         # Create health record
         health_create = AgentHealthCreate(

@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     LOG_SYNC_OPERATIONS: bool = True  # Enable/disable sync operation logs
     LOG_HTTP_REQUESTS: bool = False  # Enable/disable HTTP request logs (httpx)
     
+    # Agent Sync Strategy
+    USE_HOSTNAME_AS_SYNC_KEY: bool = False  # Use host_name instead of instance_id for agent identification
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
