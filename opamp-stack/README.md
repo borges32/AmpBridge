@@ -1,57 +1,56 @@
-# OpAMP Stack - Sistema Completo de Gerenciamento
+# OpAMP Stack - Complete Management System
 
-Stack completo para gerenciamento de agents OpAMP com backend FastAPI, sincronização automática, versionamento de configurações e API REST.
+Full stack for managing OpAMP agents with a FastAPI backend, automatic synchronization, configuration versioning, and a REST API.
 
 ---
 
-## 📋 Componentes do Stack
+## 📋 Stack Components
 
 ```
 opamp-stack/
-├── opamp-server/          # Servidor OpAMP (opamp-go)
-├── backend/               # Backend FastAPI (NOVO!)
-├── haproxy/               # Load balancer (HAProxy)
-├── data/                  # Dados persistentes
+├── opamp-server/          # OpAMP Server (opamp-go)
+├── backend/               # FastAPI Backend
+├── data/                  # Persistent data
 │   ├── postgres/          # PostgreSQL data
-│   └── redis/             # Redis data
-└── docker-compose.yml     # Orquestração completa
+├── frontend/              # OpAMP Dashboard
+└── docker-compose.yml     # Full orchestration
 ```
 
-### 🔧 Serviços
+### 🔧 Services
 
-| Serviço | Descrição | Porta | Status |
-|---------|-----------|-------|--------|
-| **postgres** | PostgreSQL 15 | 5432 | ✅ Implementado |
-| **opamp-server** | OpAMP Server (Go) | 4321 | ✅ Existente |
-| **backend** | Backend FastAPI | 8000 | ✅ Implementado |
-| **haproxy** | Load Balancer | 4320 | ✅ Existente |
+| Service | Description | Port | Status |
+|---------|-------------|------|--------|
+| **postgres** | PostgreSQL 16 | 5432 | ✅ Implemented |
+| **opamp-server** | OpAMP Server (Go) | 4320, 4321 | ✅ Available |
+| **backend** | FastAPI Backend | 8000 | ✅ Implemented |
+| **frontend** | OpAMP Dashboard | 3000 | ✅ Implemented |
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Subir todos os serviços
+### 1. Start all services
 
 ```bash
 cd opamp-stack
 docker compose up -d
 ```
 
-### 2. Verificar status
+### 2. Check status
 
 ```bash
 docker compose ps
 ```
 
-Todos devem estar "healthy" após ~30 segundos.
+All services should be "healthy" after ~30 seconds.
 
-### 3. Acessar serviços
+### 3. Access services
 
 - **Backend API**: http://localhost:8000/docs
 - **OpAMP Server**: http://localhost:4321
-- **HAProxy**: http://localhost:4320
+- **OpAMP Dashboard**: http://localhost:3000
 
-### 4. Criar primeiro usuário
+### 4. Create the first user
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/register \
@@ -64,7 +63,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
   }'
 ```
 
-### 5. Fazer login
+### 5. Log in
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/login \
@@ -75,118 +74,104 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
   }' | jq
 ```
 
-**Pronto!** 🎉 O sistema está rodando.
+**Done!** 🎉 The system is running.
 
 ---
 
-## 📦 Backend FastAPI - Novo Sistema
+## 📦 FastAPI Backend
 
-O backend implementa um sistema completo de gerenciamento para OpAMP:
+The backend implements a complete management system for OpAMP:
 
-### ✨ Funcionalidades
+### ✨ Features
 
-1. **Sincronização Automática**
-   - Job background que sincroniza com OpAMP a cada 60s
-   - Atualiza dados de agents, health e configurações
-   - Marca agents desconectados automaticamente
+1. **Automatic Synchronization**
+   - Background job that syncs with OpAMP every 60s
+   - Updates agent data, health, and configurations
+   - Automatically marks disconnected agents
 
-2. **Versionamento de Configurações**
-   - Detecta mudanças via SHA256 hash
-   - Cria nova versão automaticamente
-   - Histórico completo de alterações
+2. **Configuration Versioning**
+   - Detects changes via SHA256 hash
+   - Automatically creates a new version
+   - Full change history
 
-3. **Sistema de Alertas**
-   - Detecção de divergências de configuração
-   - Flags de alerta em agents
-   - Status de sincronização (IN_SYNC/OUT_OF_SYNC)
+3. **Alert System**
+   - Detects configuration divergences
+   - Alert flags on agents
+   - Sync status (IN_SYNC/OUT_OF_SYNC)
 
-4. **API REST Completa**
-   - 15+ endpoints documentados
-   - Autenticação JWT
-   - Export CSV
-   - Download de configs
+4. **Full REST API**
+   - 15+ documented endpoints
+   - JWT authentication
+   - CSV export
+   - Config download
 
-5. **Gestão de Configurações**
-   - Envio de configs para agents via OpAMP
-   - Rastreabilidade de quem alterou
-   - Integração completa com OpAMP Server
+5. **Configuration Management**
+   - Push configs to agents via OpAMP
+   - Audit trail of who made changes
+   - Full integration with OpAMP Server
 
-### 📊 Banco de Dados
+### 📊 Database
 
-PostgreSQL com 4 tabelas:
+PostgreSQL with 4 tables:
 
-- **users**: Usuários do sistema
-- **agents**: Dados dos agents OpAMP
-- **agent_health**: Histórico de saúde
-- **agent_configs**: Versionamento de configurações
+- **users**: System users
+- **agents**: OpAMP agent data
+- **agent_health**: Health history
+- **agent_configs**: Configuration versioning
 
-### 📚 Documentação Completa
+### 📚 Full Documentation
 
-Ver documentação detalhada em `backend/`:
+See detailed documentation in `backend/`:
 
-- **[README.md](backend/README.md)** - Documentação completa
-- **[ARCHITECTURE.md](backend/ARCHITECTURE.md)** - Arquitetura do sistema
-- **[QUICKSTART.md](backend/QUICKSTART.md)** - Guia rápido
-- **[SUMMARY.md](backend/SUMMARY.md)** - Sumário executivo
+- **[README.md](backend/README.md)** - Full documentation
+- **[ARCHITECTURE.md](backend/ARCHITECTURE.md)** - System architecture
+- **[QUICKSTART.md](backend/QUICKSTART.md)** - Quick start guide
+- **[SUMMARY.md](backend/SUMMARY.md)** - Executive summary
 
 ---
 
-## 🏗️ Arquitetura Completa
+## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  Docker Network                      │
-├─────────────────────────────────────────────────────┤
-│                                                       │
-│  ┌──────────────┐                                    │
-│  │              │                                    │
-│  │   HAProxy    │                                    │
-│  │   :4320      │                                    │
-│  │              │                                    │
-│  └──────┬───────┘                                    │
-│         │                                            │
-│         ▼                                            │
-│  ┌──────────────┐      ┌──────────────┐             │
-│  │              │      │              │             │
-│  │  OpAMP       │◄─────┤   Backend    │             │
-│  │  Server      │ sync │   FastAPI    │             │
-│  │  :4321       │      │   :8000      │             │
-│  │              │      │              │             │
-│  └──────┬───────┘      └──────┬───────┘             │
-│         │                     │                     │
-│         │                     ▼                     │
-│         │              ┌──────────────┐             │
-│         │              │              │             │
-│         │              │  PostgreSQL  │             │
-│         │              │  :5432       │             │
-│         │              │              │             │
-│         │              └──────────────┘             │
-│         │                                            │
-│         ▼                                            │
-│  ┌──────────────┐                                    │
-│  │              │                                    │
-│  │   Agents     │                                    │
-│  │   (OpAMP)    │                                    │
-│  │              │                                    │
-│  └──────────────┘                                    │
-│                                                       │
-└─────────────────────────────────────────────────────┘
+              External (host)
+ ┌────────────────────────────────────────────────────────────────┐
+ │  OTel Agents ──ws──► :4320   Frontend ──► :3000   API ──► :8000│
+ └───────────────────┬────────────────────────────────────────────┘
+                     │ opamp-network (bridge)
+ ┌───────────────────▼────────────────────────────────────────────┐
+ │                                                                │
+ │  ┌─────────────────────────┐      ┌──────────────────────┐    │
+ │  │      opamp-server       │◄─────│   Backend FastAPI    │    │
+ │  │  OpAMP :4320 (WS/HTTP)  │ sync │       :8000          │    │
+ │  │  UI    :4321            │      └──────────┬───────────┘    │
+ │  └─────────────────────────┘                 │                │
+ │                                              ▼                │
+ │                                   ┌──────────────────────┐    │
+ │                                   │      PostgreSQL       │    │
+ │                                   │        :5432          │    │
+ │                                   └──────────────────────┘    │
+ │                                                                │
+ │  ┌──────────────────────┐                                      │
+ │  │   Frontend (nginx)   │                                      │
+ │  │   :80 → host :3000   │                                      │
+ │  └──────────────────────┘                                      │
+ └────────────────────────────────────────────────────────────────┘
 ```
 
-### Fluxo de Dados
+### Data Flow
 
-1. **Agents** conectam ao **OpAMP Server** (porta 4321 ou via HAProxy 4320)
-2. **Backend** sincroniza periodicamente com **OpAMP Server**
-3. **Backend** persiste dados no **PostgreSQL**
-4. Usuários acessam **Backend API** (porta 8000) para gestão
+1. **OTel Agents** connect directly to the **OpAMP Server** via WebSocket (`ws://<host>:4320/v1/opamp`)
+2. **Backend** periodically syncs with the **OpAMP Server** (internal port 4321)
+3. **Backend** persists data in **PostgreSQL**
+4. Users access the **Frontend** (port 3000) or the **Backend API** (port 8000) for management
 
 ---
 
-## 🔧 Configuração
+## 🔧 Configuration
 
-### Variáveis de Ambiente (Backend)
+### Environment Variables (Backend)
 
-Edite `backend/.env`:
+Edit `backend/.env`:
 
 ```env
 # Database
@@ -196,95 +181,100 @@ DATABASE_URL=postgresql+asyncpg://opamp:opamp_password@postgres:5432/opamp_db
 OPAMP_SERVER_URL=http://opamp-server:4321
 OPAMP_SYNC_INTERVAL_SECONDS=60
 
-# Security (ALTERAR EM PRODUÇÃO!)
+# Security (CHANGE IN PRODUCTION!)
 SECRET_KEY=change-this-secret-key-in-production
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-**Importante:** Gerar nova `SECRET_KEY` em produção:
+**Important:** Generate a new `SECRET_KEY` for production:
 ```bash
 openssl rand -hex 32
 ```
 
-### Portas Expostas
+### Exposed Ports
 
-| Serviço | Porta Interna | Porta Externa | Descrição |
-|---------|---------------|---------------|-----------|
-| Backend | 8000 | 8000 | API REST |
-| OpAMP Server | 4321 | 4321 | UI e API OpAMP |
-| HAProxy | 4320 | 4320 | Load balancer |
+| Service | Internal Port | External Port | Description |
+|---------|---------------|---------------|-------------|
+| OpAMP Server | 4320 | 4320 | OpAMP Protocol (WebSocket/HTTP) |
+| OpAMP Server | 4321 | 4321 | Management UI and API |
+| Backend | 8000 | 8000 | FastAPI REST API |
+| Frontend | 80 | 3000 | Web dashboard |
 | PostgreSQL | 5432 | 5432 | Database |
 
 ---
 
-## 📡 Endpoints da API
+## 📡 API Endpoints
 
 ### Base URL
 ```
 http://localhost:8000/api/v1
 ```
 
-### Principais Endpoints
+### Main Endpoints
 
-#### Autenticação
-- `POST /auth/register` - Registrar usuário
-- `POST /auth/login` - Login (retorna JWT)
-- `GET /auth/me` - Info usuário atual
+#### Authentication
+- `POST /auth/register` - Register user
+- `POST /auth/login` - Login (returns JWT)
+- `GET /auth/me` - Current user info
 
 #### Agents
-- `GET /agents` - Listar agents (paginado)
-- `GET /agents/{id}` - Detalhes do agent
-- `GET /agents/{id}/health` - Histórico de saúde
-- `GET /agents/{id}/configs` - Histórico de configs
+- `GET /agents` - List agents (paginated)
+- `GET /agents/{id}` - Agent details
+- `GET /agents/{id}/health` - Health history
+- `GET /agents/{id}/configs` - Config history
 - `GET /agents/{id}/config` - Download YAML config
-- `GET /agents/csv` - Export CSV (auth)
+- `GET /agents/csv` - CSV export (auth required)
 
-#### Configuração
-- `POST /config?instance_id={id}` - Atualizar config (auth)
+#### Configuration
+- `POST /config?instance_id={id}` - Update config (auth required)
 
-#### Sincronização
-- `POST /opamp/sync` - Sync manual (auth)
+#### Synchronization
+- `POST /opamp/sync` - Manual sync (auth required)
 
-**Documentação interativa:** http://localhost:8000/docs
+**Interactive docs:** http://localhost:8000/docs
 
 ---
 
-## 🔒 Segurança
+## 🔒 Security
 
-### Autenticação JWT
+### JWT Authentication
 
-1. Registre um usuário: `POST /auth/register`
-2. Faça login: `POST /auth/login`
-3. Use o token retornado: `Authorization: Bearer <token>`
+1. Register a user: `POST /auth/register`
+2. Log in: `POST /auth/login`
+3. Use the returned token: `Authorization: Bearer <token>`
 
-### Endpoints Protegidos
+### Protected Endpoints
 
-Requerem autenticação:
+Require authentication:
 - ✅ `POST /config`
 - ✅ `POST /opamp/sync`
 - ✅ `GET /agents/csv`
 
-Públicos:
+Public:
 - ❌ `GET /agents`
 - ❌ `GET /agents/{id}`
 
 ---
 
-## 🧪 Testes
+## 🧪 Testing
 
-### Teste Rápido
+### Quick Test
 
 ```bash
 # Health checks
 curl http://localhost:8000/health
 curl http://localhost:4321/
 
-# Listar agents
+# Verify OpAMP port
+curl -i -N -H "Upgrade: websocket" -H "Connection: Upgrade" \
+  http://localhost:4320/v1/opamp 2>&1 | head -5
+
+# List agents
 curl http://localhost:8000/api/v1/agents | jq
 ```
 
-### Script Completo de Testes
+### Full Test Script
 
 ```bash
 cd backend
@@ -294,15 +284,15 @@ chmod +x test_api.sh
 
 ---
 
-## 📊 Monitoramento
+## 📊 Monitoring
 
 ### Logs
 
 ```bash
-# Todos os serviços
+# All services
 docker compose logs -f
 
-# Backend apenas
+# Backend only
 docker logs -f opamp-backend
 
 # OpAMP Server
@@ -315,10 +305,10 @@ docker logs -f opamp-postgres
 ### Health Checks
 
 ```bash
-# Verificar status de todos os serviços
+# Check all services status
 docker compose ps
 
-# Health check individual
+# Individual health check
 curl http://localhost:8000/health         # Backend
 curl http://localhost:4321/               # OpAMP
 docker exec opamp-postgres pg_isready     # PostgreSQL
@@ -327,56 +317,56 @@ docker exec opamp-postgres pg_isready     # PostgreSQL
 ### Database
 
 ```bash
-# Conectar ao PostgreSQL
+# Connect to PostgreSQL
 docker exec -it opamp-postgres psql -U opamp -d opamp_db
 
-# Ver estatísticas
+# View statistics
 # opamp_db=# SELECT 'agents', COUNT(*) FROM agents;
 # opamp_db=# SELECT instance_id, host_name, alert_config FROM agents;
 ```
 
 ---
 
-## 🛠️ Comandos Úteis
+## 🛠️ Useful Commands
 
 ### Docker Compose
 
 ```bash
-# Subir tudo
+# Start everything
 docker compose up -d
 
-# Ver status
+# View status
 docker compose ps
 
-# Ver logs
+# View logs
 docker compose logs -f
 
-# Restart serviço específico
+# Restart a specific service
 docker compose restart backend
 
-# Parar tudo
+# Stop everything
 docker compose down
 
-# Parar e remover volumes (CUIDADO: apaga dados!)
+# Stop and remove volumes (CAUTION: deletes data!)
 docker compose down -v
 
-# Rebuild e restart
+# Rebuild and restart
 docker compose up -d --build backend
 ```
 
 ### Migrations (Backend)
 
 ```bash
-# Ver status atual
+# View current status
 docker exec opamp-backend alembic current
 
-# Aplicar todas as migrations
+# Apply all migrations
 docker exec opamp-backend alembic upgrade head
 
-# Voltar uma migration
+# Roll back one migration
 docker exec opamp-backend alembic downgrade -1
 
-# Criar nova migration
+# Create a new migration
 docker exec opamp-backend alembic revision -m "description"
 ```
 
@@ -394,63 +384,63 @@ cat backup.sql | docker exec -i opamp-postgres psql -U opamp -d opamp_db
 
 ## 🐛 Troubleshooting
 
-### Backend não inicia
+### Backend does not start
 
 ```bash
-# Ver logs
+# View logs
 docker logs opamp-backend
 
-# Verificar se postgres está healthy
+# Check if postgres is healthy
 docker compose ps postgres
 
-# Verificar variáveis de ambiente
+# Check environment variables
 docker exec opamp-backend env | grep DATABASE_URL
 
 # Restart
 docker compose restart backend
 ```
 
-### Sincronização não funciona
+### Synchronization not working
 
 ```bash
-# Ver logs de sync
+# View sync logs
 docker logs -f opamp-backend | grep sync
 
-# Testar conexão com OpAMP
+# Test connection to OpAMP
 docker exec opamp-backend curl http://opamp-server:4321/agents/full
 
-# Forçar sync manual
-TOKEN=<seu-token>
+# Force manual sync
+TOKEN=<your-token>
 curl -X POST http://localhost:8000/api/v1/opamp/sync \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### Problemas de autenticação
+### Authentication issues
 
 ```bash
-# Verificar se usuário existe
+# Check if user exists
 docker exec -it opamp-postgres psql -U opamp -d opamp_db \
   -c "SELECT id, login, email, is_active FROM users;"
 
-# Criar novo usuário se necessário
+# Create a new user if needed
 curl -X POST http://localhost:8000/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"name": "Test", "email": "test@example.com", "login": "test", "password": "test123"}'
 ```
 
-### Rebuild completo
+### Full rebuild
 
 ```bash
-# Parar tudo
+# Stop everything
 docker compose down
 
-# Rebuild imagens
+# Rebuild images
 docker compose build --no-cache backend
 
-# Subir novamente
+# Start again
 docker compose up -d
 
-# Aplicar migrations
+# Apply migrations
 docker exec opamp-backend alembic upgrade head
 ```
 
@@ -458,40 +448,40 @@ docker exec opamp-backend alembic upgrade head
 
 ## 📈 Performance
 
-### Expectativas (hardware médio)
+### Expectations (average hardware)
 
-- **Listagem de agents (50 items)**: < 100ms
-- **Get agent por ID**: < 50ms
-- **Atualização de config**: < 500ms
-- **Job de sync (100 agents)**: < 5s
+- **List agents (50 items)**: < 100ms
+- **Get agent by ID**: < 50ms
+- **Config update**: < 500ms
+- **Sync job (100 agents)**: < 5s
 
-### Otimizações
+### Optimizations
 
-- Uso de async/await em toda stack
-- Índices no database
-- Paginação em queries grandes
+- async/await throughout the stack
+- Database indexes
+- Pagination for large queries
 - Connection pooling
 
 ---
 
-## 🔄 Sincronização Automática
+## 🔄 Automatic Synchronization
 
-### Como Funciona
+### How It Works
 
-1. Background task roda a cada 60s
-2. Faz GET para `/agents/full` do OpAMP
-3. Para cada agent:
-   - Atualiza dados básicos
-   - Cria registro de health
-   - Verifica se config mudou (hash SHA256)
-   - Se mudou: cria nova versão e marca alerta
-4. Marca agents ausentes como desconectados
+1. Background task runs every 60s
+2. Sends GET to `/agents/full` on the OpAMP Server
+3. For each agent:
+   - Updates basic data
+   - Creates a health record
+   - Checks if config changed (SHA256 hash)
+   - If changed: creates a new version and sets alert flag
+4. Marks absent agents as disconnected
 
-### Configurar Intervalo
+### Configure Interval
 
-Edite `backend/.env`:
+Edit `backend/.env`:
 ```env
-OPAMP_SYNC_INTERVAL_SECONDS=30  # 30 segundos
+OPAMP_SYNC_INTERVAL_SECONDS=30  # 30 seconds
 ```
 
 Restart:
@@ -501,56 +491,56 @@ docker compose restart backend
 
 ---
 
-## 📚 Documentação Adicional
+## 📚 Additional Documentation
 
-- **Backend API**: Ver `backend/README.md`
-- **Arquitetura**: Ver `backend/ARCHITECTURE.md`
-- **Quick Start**: Ver `backend/QUICKSTART.md`
-- **Sumário**: Ver `backend/SUMMARY.md`
+- **Backend API**: See `backend/README.md`
+- **Architecture**: See `backend/ARCHITECTURE.md`
+- **Quick Start**: See `backend/QUICKSTART.md`
+- **Summary**: See `backend/SUMMARY.md`
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
 ---
 
-## 🎯 Casos de Uso
+## 🎯 Use Cases
 
-### 1. Monitorar Agents
+### 1. Monitor Agents
 
 ```bash
-# Listar todos
+# List all
 curl http://localhost:8000/api/v1/agents | jq
 
-# Agents com alertas
+# Agents with alerts
 curl http://localhost:8000/api/v1/agents | \
   jq '.agents[] | select(.alert_config == true)'
 
-# Export para análise
+# Export for analysis
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:8000/api/v1/agents/csv -o agents.csv
 ```
 
-### 2. Verificar Saúde de um Agent
+### 2. Check Agent Health
 
 ```bash
 INSTANCE_ID="019a7534-f534-70ab-bbbc-115e2d231708"
 
-# Dados atuais
+# Current data
 curl http://localhost:8000/api/v1/agents/$INSTANCE_ID | jq
 
-# Histórico de saúde
+# Health history
 curl "http://localhost:8000/api/v1/agents/$INSTANCE_ID/health?limit=50" | jq
 ```
 
-### 3. Gerenciar Configurações
+### 3. Manage Configurations
 
 ```bash
-# Ver histórico de configs
+# View config history
 curl "http://localhost:8000/api/v1/agents/$INSTANCE_ID/configs" | jq
 
-# Baixar config atual
+# Download current config
 curl "http://localhost:8000/api/v1/agents/$INSTANCE_ID/config" -o config.yaml
 
-# Enviar nova config
+# Push new config
 curl -X POST "http://localhost:8000/api/v1/config?instance_id=$INSTANCE_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -559,55 +549,54 @@ curl -X POST "http://localhost:8000/api/v1/config?instance_id=$INSTANCE_ID" \
 
 ---
 
-## 🚦 Status do Projeto
+## 🚦 Project Status
 
-### Componentes
+### Components
 
-| Componente | Status | Descrição |
-|------------|--------|-----------|
-| OpAMP Server | ✅ Funcionando | Servidor OpAMP existente |
-| HAProxy | ✅ Funcionando | Load balancer |
-| PostgreSQL | ✅ Funcionando | Database |
-| Backend API | ✅ Implementado | Sistema completo FastAPI |
-| Frontend | 🔲 Planejado | Interface web (futuro) |
+| Component | Status | Description |
+|-----------|--------|-------------|
+| OpAMP Server | ✅ Working | OpAMP server (direct port 4320) |
+| PostgreSQL | ✅ Working | Database |
+| Backend API | ✅ Implemented | Full FastAPI system |
+| Frontend | ✅ Implemented | Web dashboard |
 
-### Features Backend
+### Backend Features
 
-- ✅ Modelos de dados
+- ✅ Data models
 - ✅ Migrations (Alembic)
-- ✅ Autenticação JWT
-- ✅ CRUD agents
-- ✅ Sincronização OpAMP
-- ✅ Versionamento configs
-- ✅ Sistema de alertas
-- ✅ API REST completa
-- ✅ Dockerização
-- ✅ Documentação
+- ✅ JWT authentication
+- ✅ Agent CRUD
+- ✅ OpAMP synchronization
+- ✅ Config versioning
+- ✅ Alert system
+- ✅ Full REST API
+- ✅ Dockerized
+- ✅ Documentation
 
 ---
 
-## 🎉 Conclusão
+## 🎉 Summary
 
-O **OpAMP Stack** agora possui um backend completo e funcional com:
+**OpAMP Stack** provides a complete and functional backend with:
 
-- ✨ Sincronização automática
-- 📦 Versionamento de configs
-- 🔔 Sistema de alertas
-- 🔐 Autenticação JWT
-- 📊 API REST documentada
-- 🐳 Totalmente containerizado
+- ✨ Automatic synchronization
+- 📦 Config versioning
+- 🔔 Alert system
+- 🔐 JWT authentication
+- 📊 Documented REST API
+- 🐳 Fully containerized
 
-**Tudo funcionando e pronto para uso!**
+**All working and ready to use!**
 
 ---
 
-## 📞 Suporte
+## 📞 Support
 
-Para questões e suporte:
-- Issues no repositório
-- Documentação: `backend/README.md`
+For questions and support:
+- Issues in the repository
+- Documentation: `backend/README.md`
 - API Docs: http://localhost:8000/docs
 
 ---
 
-**Desenvolvido com ❤️ usando FastAPI + PostgreSQL + OpAMP**
+**Built with ❤️ using FastAPI + PostgreSQL + OpAMP**

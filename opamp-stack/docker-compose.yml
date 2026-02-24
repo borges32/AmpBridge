@@ -22,9 +22,10 @@ services:
     build:
       context: ./opamp-server
     image: local/opamp-server:latest
-    container_name: opamp-server    
-    command: ["/usr/local/bin/opamp-server"]       
+    container_name: opamp-server
+    command: ["/usr/local/bin/opamp-server"]
     ports:
+      - "4320:4320"  # OpAMP Protocol (direct access)
       - "4321:4321"  # UI
     healthcheck:
       test: ["CMD","wget","-qO-","http://localhost:4321/"]
@@ -63,23 +64,6 @@ services:
     networks:
       - opamp-network
     restart: unless-stopped
-
-  haproxy:
-    image: haproxy:3.2-alpine
-    container_name: opamp-haproxy
-    depends_on:
-      - opamp-server
-    volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    ports:
-      - "4320:4320"       # OpAMP Protocol
-      - "8404:8404"       # HAProxy Stats
-    networks:
-      - opamp-network
-    ulimits:
-      nofile:
-        soft: 524288
-        hard: 524288
 
   frontend:
     build:
