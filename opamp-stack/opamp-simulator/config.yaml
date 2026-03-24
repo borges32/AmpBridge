@@ -1,0 +1,111 @@
+# OpAMP Agent Load Simulator Configuration
+# -----------------------------------------
+# This file controls the behavior of the simulated OTel agents
+# that connect to the OpAMP server via WebSocket.
+
+# OpAMP server connection
+server:
+  # WebSocket URL of the OpAMP server
+  url: "ws://127.0.0.1:4320/v1/opamp"
+  # Use TLS (wss://) with InsecureSkipVerify
+  insecure_tls: true
+
+# Simulation parameters
+simulation:
+  # Total number of simulated agents to create
+  agent_count: 100
+  # How many agents to spawn per second (ramp-up rate)
+  # Use lower values for gradual ramp-up to avoid overwhelming the server
+  # e.g. 50 = spawn 50 agents per second, so 8000 agents take ~160s to all connect
+  spawn_rate: 50
+  # How long to keep agents connected (0 = forever, until Ctrl+C)
+  duration_seconds: 0
+
+# Agent behavior
+agent:
+  # Service name reported by simulated agents
+  service_name: "io.opentelemetry.collector"
+  # Service version
+  service_version: "0.102.1"
+  # OS type reported (linux, windows, darwin)
+  os_type: "linux"
+  # Hostname prefix — each agent gets "{prefix}-{index}" as hostname
+  hostname_prefix: "otel-sim"
+  # Host architecture
+  host_arch: "amd64"
+  # OS description
+  os_description: "Ubuntu 22.04.4 LTS"
+
+  # How often each agent sends a health update (seconds)
+  health_interval_seconds: 60
+  # How often each agent reports effective config (seconds)
+  config_report_interval_seconds: 120
+  # Percentage of agents that report as unhealthy (0-100)
+  unhealthy_percent: 5
+  # Whether agents accept remote config
+  accept_remote_config: true
+
+# Effective config template (YAML) — simulates a realistic OTel collector config
+# Each agent gets a slightly different config (different instance index in comments)
+effective_config: |
+  exporters:
+    otlp:
+      endpoint: otel-gateway:4317
+      tls:
+        insecure: true
+
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+    hostmetrics:
+      collection_interval: 30s
+      scrapers:
+        cpu: {}
+        disk: {}
+        memory: {}
+        network: {}
+
+  processors:
+    batch:
+      timeout: 5s
+      send_batch_size: 512
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 512
+
+  extensions:
+    health_check:
+      endpoint: 0.0.0.0:13133
+    opamp:
+      server:
+        ws:
+          endpoint: ws://opamp-server:4320/v1/opamp
+
+  service:
+    extensions: [health_check, opamp]
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp]
+      metrics:
+        receivers: [otlp, hostmetrics]
+        processors: [memory_limiter, batch]
+        exporters: [otlp]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp]
+
+# Logging
+logging:
+  # Log level: debug, info, warn, error
+  level: "info"
+  # Log connection events (connect, disconnect, reconnect)
+  log_connections: true
+  # Log periodic status updates (every N agents connected)
+  progress_interval: 100

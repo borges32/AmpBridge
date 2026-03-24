@@ -72,29 +72,27 @@ class AgentConfigRepository:
     
     async def bulk_create(self, config_data_list: List[AgentConfigCreate]) -> List[AgentConfig]:
         """Bulk create config records.
-        
-        Optimized for performance with large batches.
-        
+
+        Does NOT commit — caller (service layer) is responsible for committing
+        the transaction to ensure atomicity across multiple bulk operations.
+
         Args:
             config_data_list: List of config data to create
-            
+
         Returns:
             List of created AgentConfig objects
         """
         if not config_data_list:
             return []
-        
+
         configs = [
-            AgentConfig(**config_data.model_dump()) 
+            AgentConfig(**config_data.model_dump())
             for config_data in config_data_list
         ]
-        
+
         self.db.add_all(configs)
-        await self.db.commit()
-        
-        for config in configs:
-            await self.db.refresh(config)
-        
+        await self.db.flush()
+
         return configs
     
     async def get_latest_configs_bulk(self, instance_ids: List[str]) -> dict:

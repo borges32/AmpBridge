@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     OPAMP_SYNC_BATCH_SIZE: int = 100  # Number of agents to process in parallel
     OPAMP_SYNC_MAX_WORKERS: int = 10   # Max concurrent batches
     OPAMP_DB_BULK_SIZE: int = 500      # Bulk insert/update size
+    OPAMP_HTTP_TIMEOUT: float = 30.0   # HTTP client timeout in seconds
+    OPAMP_DELTA_SYNC_ENABLED: bool = True  # Use delta sync (only sync when changes detected)
+    OPAMP_HEALTH_CLEANUP_KEEP: int = 5  # Number of health records to keep per agent
     
     # Security
     SECRET_KEY: str

@@ -86,27 +86,25 @@ class AgentHealthRepository:
     
     async def bulk_create(self, health_data_list: List[AgentHealthCreate]) -> List[AgentHealth]:
         """Bulk create health records.
-        
-        Optimized for performance with large batches.
-        
+
+        Does NOT commit — caller (service layer) is responsible for committing
+        the transaction to ensure atomicity across multiple bulk operations.
+
         Args:
             health_data_list: List of health data to create
-            
+
         Returns:
             List of created AgentHealth objects
         """
         if not health_data_list:
             return []
-        
+
         health_records = [
-            AgentHealth(**health_data.model_dump()) 
+            AgentHealth(**health_data.model_dump())
             for health_data in health_data_list
         ]
-        
+
         self.db.add_all(health_records)
-        await self.db.commit()
-        
-        for health in health_records:
-            await self.db.refresh(health)
-        
+        await self.db.flush()
+
         return health_records
